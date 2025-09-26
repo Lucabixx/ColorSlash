@@ -1,0 +1,2 @@
+import 'package:flutter/material.dart';
+class HomePage extends StatelessWidget{ const HomePage({super.key}); @override Widget build(BuildContext c)=>Scaffold(appBar: AppBar(title: const Text('ColorSlash')), body: const Center(child: Text('Home - notes list')));}
