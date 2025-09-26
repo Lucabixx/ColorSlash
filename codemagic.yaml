@@ -1,0 +1,47 @@
+workflows:
+  android-apk-debug:
+    name: Android APK Debug Workflow
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      java: 17
+    scripts:
+      - name: Pulizia e dipendenze
+        script: |
+          flutter clean
+          flutter pub get
+          flutter doctor -v
+      - name: Build APK debug
+        script: |
+          flutter build apk --debug
+    artifacts:
+      - build/app/outputs/flutter-apk/app-debug.apk
+    publishing:
+      email:
+        recipients:
+          - luca.bixx@hotmail.it
+
+  android-apk-release:
+    name: Android APK Release Workflow
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      java: 17
+    scripts:
+      - name: Aggiorna dipendenze Flutter
+        script: |
+          flutter pub upgrade --major-versions
+      - name: Pulizia progetto
+        script: |
+          flutter clean
+          flutter pub get
+          flutter doctor -v
+      - name: Build APK release
+        script: |
+          flutter build apk --release
+    artifacts:
+      - build/app/outputs/flutter-apk/app-release.apk
+    publishing:
+      email:
+        recipients:
+          - luca.bixx@hotmail.it
