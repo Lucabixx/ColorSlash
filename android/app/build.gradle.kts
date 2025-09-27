@@ -6,8 +6,8 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services") version "4.4.3" // Google services si applica QUI
-    id("com.google.firebase.crashlytics") version "3.0.6"
+    id("com.google.gms.google-services") version "4.4.3" // Google Services
+    id("com.google.firebase.crashlytics") version "3.0.6" // Crashlytics
 }
 
 val keystorePropertiesFile = rootProject.file("key.properties")
@@ -39,19 +39,19 @@ android {
     }
 
     buildTypes {
-        getByName("release") {
+        release {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled.set(false)
-            isShrinkResources.set(false)
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
 
-        getByName("debug") {
-            isMinifyEnabled.set(false)
-            isShrinkResources.set(false)
+        debug {
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 
@@ -60,9 +60,19 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // Opzione Kotlin (forma classica)
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    // Alternativa moderna (opzionale, decommenta se vuoi)
+    /*
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+    }
+    */
 
     buildFeatures {
         viewBinding = true
@@ -74,6 +84,12 @@ flutter {
 }
 
 dependencies {
+    // Flutter / Kotlin / Multidex
     implementation("androidx.multidex:multidex:2.0.1")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.0.21")
-} 
+
+    // Firebase (Crashlytics + Analytics)
+    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-crashlytics")
+}
