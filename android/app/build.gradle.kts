@@ -32,7 +32,6 @@ signingConfigs {
         applicationId = "app.lucabixx.colorslash"
         minSdk = flutter.minSdkVersion // o flutter.minSdkVersion se lo leggi da gradle.properties
 		targetSdk = 36
-        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
         multiDexEnabled = true
