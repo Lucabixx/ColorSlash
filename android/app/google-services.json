@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "194515648643",
+    "project_id": "color-slash-16a18",
+    "storage_bucket": "color-slash-16a18.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:194515648643:android:553f3c76cfcf0e54c69bb6",
+        "android_client_info": {
+          "package_name": "app.lucabixx.colorslasher"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBAb1DKcIo4xOFWTYejAf1Ncvfa3wEw4O0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
