@@ -8,6 +8,7 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services") version "4.4.3" // Google services si applica QUI
     id("com.google.firebase.crashlytics") version "3.0.6"
+
 }
 
 val keystorePropertiesFile = rootProject.file("key.properties")
@@ -31,27 +32,26 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file(keystoreProperties["storeFile"]?.toString() ?: "keystore.jks")
-            storePassword = keystoreProperties["storePassword"]?.toString() ?: "140596"
-            keyAlias = keystoreProperties["keyAlias"]?.toString() ?: "upload"
-            keyPassword = keystoreProperties["keyPassword"]?.toString() ?: "140596"
+            storeFile = file(keystoreProperties["storeFile"] ?: "keystore.jks")
+            storePassword = keystoreProperties["storePassword"] as String? ?: "140596"
+            keyAlias = keystoreProperties["keyAlias"] as String? ?: "upload"
+            keyPassword = keystoreProperties["keyPassword"] as String? ?: "140596"
         }
     }
 
     buildTypes {
         getByName("release") {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
-            isShrinkResources = false
+            minifyEnabled = false
+            shrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
-
         getByName("debug") {
-            isMinifyEnabled = false
-            isShrinkResources = false
+            minifyEnabled = false
+            shrinkResources = false
         }
     }
 
@@ -81,35 +81,5 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.20")
 }
 
-
-signingConfigs {
-    create("release") {
-        storeFile = file("../keystore.jks")
-        storePassword = "140596"
-        keyAlias = "upload"
-        keyPassword = "140596"
-        isMinifyEnabled = false
-        isShrinkResources = false
-    }
-}
-
-    defaultConfig {
-        applicationId = "app.lucabixx.colorslash"
-        minSdk = flutter.minSdkVersion // o flutter.minSdkVersion se lo leggi da gradle.properties
-		targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
-        multiDexEnabled = true
-    }
-// }
-
-flutter {
-    source = "../.."
- }
-
-dependencies {
-    implementation("androidx.multidex:multidex:2.0.1")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.20")
-}
 
 
