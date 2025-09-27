@@ -20,6 +20,11 @@ workflows:
       - name: Install dependencies
         script: |
           flutter pub get
+          
+        - name: Flutter pub upgrade 
+        script: |
+          flutter pub upgrade 
+          
       - name: Generate launcher icons
         script: |
           flutter pub run flutter_launcher_icons:main
@@ -50,3 +55,4 @@ workflows:
         notify:
           success: true
           failure: true
+
