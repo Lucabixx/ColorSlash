@@ -1,24 +1,27 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
+
+/// 🔹 Inizializzazione Firebase centralizzata
 class FirebaseService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _google = GoogleSignIn();
+  static bool _initialized = false;
 
-  FirebaseService._private();
-  static final FirebaseService instance = FirebaseService._private();
+  /// Chiama questo metodo **una sola volta** all’avvio dell’app (es. nel main)
+  static Future<void> initializeFirebase(BuildContext context) async {
+    if (_initialized) return;
 
-  Future<User?> signInWithGoogle() async {
     try {
-      final googleUser = await _google.signIn();
-      if (googleUser == null) return null;
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(accessToken: googleAuth.accessToken, idToken: googleAuth.idToken);
-      final userCred = await _auth.signInWithCredential(credential);
-      return userCred.user;
+      await Firebase.initializeApp();
+      _initialized = true;
     } catch (e) {
-      print('signInWithGoogle error: $e');
-      rethrow;
+      debugPrint("❌ Errore inizializzazione Firebase: $e");
+
+      // Mostra un messaggio d'errore visivo se serve
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Errore inizializzazione Firebase: $e")),
+        );
+      }
     }
   }
 }
