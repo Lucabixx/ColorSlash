@@ -15,37 +15,52 @@ class _SplashScreenState extends State<SplashScreen>
   late final AnimationController _entryController;
   late final AnimationController _rotationController;
 
+  double progress = 0.0;
+  Timer? progressTimer;
+
   @override
   void initState() {
     super.initState();
 
+    // Animazione ingresso icone
     _entryController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..forward();
 
+    // Rotazione logo
     _rotationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 6),
     )..repeat();
 
-    // Naviga alla HomeScreen dopo 4 secondi
-    Timer(const Duration(seconds: 4), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
+    // Barra di caricamento incrementale
+    progressTimer = Timer.periodic(const Duration(milliseconds: 40), (timer) {
+      setState(() {
+        progress += 0.01;
+        if (progress >= 1.0) {
+          timer.cancel();
+          _goToHome();
+        }
+      });
     });
+  }
+
+  void _goToHome() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+    );
   }
 
   @override
   void dispose() {
+    progressTimer?.cancel();
     _entryController.dispose();
     _rotationController.dispose();
     super.dispose();
   }
 
-  /// Icone fluttuanti animate
   Widget _floatingIcon(
       IconData icon, Color color, double dx, double dy, double delay) {
     return AnimatedBuilder(
@@ -70,7 +85,7 @@ class _SplashScreenState extends State<SplashScreen>
           return Stack(
             alignment: Alignment.center,
             children: [
-              // Sfondo gradiente
+              // Sfondo
               Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
@@ -94,19 +109,47 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
               ),
 
-              // Icone fluttuanti intorno al logo
+              // Icone fluttuanti
               _floatingIcon(Icons.mic, Colors.redAccent, -120, -120, 0.0),
               _floatingIcon(Icons.edit, Colors.orangeAccent, 120, -100, 0.05),
               _floatingIcon(Icons.camera_alt, Colors.cyanAccent, -120, 100, 0.1),
               _floatingIcon(
                   Icons.videocam, Colors.lightGreenAccent, 120, 120, 0.15),
 
-              // Testo in basso
-              const Positioned(
+              // Testo e barra in basso
+              Positioned(
                 bottom: 56,
-                child: Text(
-                  'ColorSlash - Versione di Test BETA1',
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                child: Column(
+                  children: [
+                    const Text(
+                      'ColorSlash - Versione di Test BETA1',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Barra di progresso animata
+                    SizedBox(
+                      width: 200,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          backgroundColor: Colors.white10,
+                          color: Colors.blueAccent,
+                          minHeight: 6,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "${(progress * 100).toInt()}%",
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
