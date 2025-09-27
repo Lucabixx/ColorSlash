@@ -33,8 +33,9 @@ class HomeScreen extends StatelessWidget {
       ),
       body: const Center(
         child: Text(
-          "Aggiungi una nuova nota o lista con il pulsante +",
+          "Premi + per aggiungere una nota o una lista multimediale",
           style: TextStyle(color: Colors.white70),
+          textAlign: TextAlign.center,
         ),
       ),
       floatingActionButton: FloatingActionButton.large(
@@ -42,7 +43,7 @@ class HomeScreen extends StatelessWidget {
         foregroundColor: Colors.white,
         child: const Icon(Icons.add, size: 40),
         onPressed: () {
-          // TODO: collegare creazione nota/lista
+          // TODO: Schermata editor
         },
       ),
     );
