@@ -1,4 +1,4 @@
-import 'package:colorslash/screens/login_screen.dart';
+import 'package:colorslash/screens/home_screen.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
