@@ -21,7 +21,7 @@ workflows:
         script: |
           flutter pub get
           
-        - name: Flutter pub upgrade 
+        - name: Flutter pub upgrade --major-versions
         script: |
           flutter pub upgrade 
           
@@ -55,4 +55,5 @@ workflows:
         notify:
           success: true
           failure: true
+
 
