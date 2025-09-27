@@ -7,8 +7,8 @@ class CloudService {
   static final _firestore = FirebaseFirestore.instance;
   static final _storage = FirebaseStorage.instance;
 
-  /// Upload file with progress & retry
-  static Future<String> uploadMedia(
+  /// Upload with progress callback and retry
+  static Future<String> uploadMediaWithProgress(
     File file,
     String noteId, {
     void Function(double progress)? onProgress,
@@ -16,22 +16,23 @@ class CloudService {
     final fileName = file.path.split('/').last;
     final ref = _storage.ref().child('notes/$noteId/$fileName');
 
-    int attempt = 0;
+    int attempts = 0;
     while (true) {
       try {
         final uploadTask = ref.putFile(file);
-        uploadTask.snapshotEvents.listen((event) {
-          final p = event.bytesTransferred / event.totalBytes;
-          if (onProgress != null) onProgress(p);
+        uploadTask.snapshotEvents.listen((snapshot) {
+          final total = snapshot.totalBytes;
+          final transferred = snapshot.bytesTransferred;
+          if (total > 0 && onProgress != null) onProgress(transferred / total);
         });
 
         final snapshot = await uploadTask;
         final url = await snapshot.ref.getDownloadURL();
         return url;
       } catch (e) {
-        attempt++;
-        if (attempt >= 3) rethrow;
-        await Future.delayed(Duration(seconds: attempt * 2));
+        attempts++;
+        if (attempts >= 3) rethrow;
+        await Future.delayed(Duration(seconds: attempts * 2));
       }
     }
   }
@@ -39,5 +40,12 @@ class CloudService {
   static Future<void> backupNote(Map<String, dynamic> note) async {
     final id = note['id'] ?? DateTime.now().millisecondsSinceEpoch.toString();
     await _firestore.collection('notes').doc(id).set(note);
+  }
+
+  static Future<void> uploadAllNotes(List<Map<String, dynamic>> notes) async {
+    for (var n in notes) {
+      final id = n['id'] ?? DateTime.now().millisecondsSinceEpoch.toString();
+      await _firestore.collection('notes').doc(id).set(n);
+    }
   }
 }
