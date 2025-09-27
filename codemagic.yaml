@@ -8,6 +8,7 @@ workflows:
       flutter: stable
       xcode: latest
       vars:
+    JAVA_TOOL_OPTIONS: "-Xmx4096m"
         KEYSTORE_PATH: "android/app/keystore.jks"
         KEY_ALIAS: "upload"
       groups:
@@ -55,5 +56,6 @@ workflows:
         notify:
           success: true
           failure: true
+
 
 
