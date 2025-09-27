@@ -23,8 +23,8 @@ class InfoScreen extends StatelessWidget {
             Text(
               "Versione 0.1\n\n"
               "ColorSlash è un’app di note multimediali evolute. "
-              "Aggiungi testo, immagini, audio, video e schizzi a mano libera "
-              "in una sola interfaccia semplice e moderna.\n\n"
+              "Permette di aggiungere testo, immagini, audio, video e schizzi "
+              "a mano libera in un’unica interfaccia semplice e moderna.\n\n"
               "Progettato da Luca Bixx.",
               style: TextStyle(fontSize: 16),
             ),
