@@ -8,7 +8,6 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services") version "4.4.3" // Google services si applica QUI
     id("com.google.firebase.crashlytics") version "3.0.6"
-
 }
 
 val keystorePropertiesFile = rootProject.file("key.properties")
@@ -33,25 +32,26 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file(keystoreProperties["storeFile"] ?: "keystore.jks")
-            storePassword = keystoreProperties["storePassword"] as String? ?: "140596"
-            keyAlias = keystoreProperties["keyAlias"] as String? ?: "upload"
-            keyPassword = keystoreProperties["keyPassword"] as String? ?: "140596"
+            storePassword = keystoreProperties["storePassword"]?.toString() ?: "140596"
+            keyAlias = keystoreProperties["keyAlias"]?.toString() ?: "upload"
+            keyPassword = keystoreProperties["keyPassword"]?.toString() ?: "140596"
         }
     }
 
     buildTypes {
         getByName("release") {
             signingConfig = signingConfigs.getByName("release")
-            minifyEnabled = false
-            shrinkResources = false
+            isMinifyEnabled.set(false)
+            isShrinkResources.set(false)
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
+
         getByName("debug") {
-            minifyEnabled = false
-            shrinkResources = false
+            isMinifyEnabled.set(false)
+            isShrinkResources.set(false)
         }
     }
 
@@ -60,11 +60,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlin {
-        jvmToolchain(17)
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
-        }
+    kotlinOptions {
+        jvmTarget = "17"
     }
 
     buildFeatures {
@@ -78,8 +75,5 @@ flutter {
 
 dependencies {
     implementation("androidx.multidex:multidex:2.0.1")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.20")
-}
-
-
-
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.0.21")
+} 
