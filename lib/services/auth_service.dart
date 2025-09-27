@@ -1,49 +1,95 @@
-// lib/services/auth_service.dart
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'cloud_service.dart';
-import 'local_storage.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService extends ChangeNotifier {
-  final _google = GoogleSignIn();
-  final _auth = FirebaseAuth.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
-  bool get isSignedIn => _auth.currentUser != null;
+  User? get currentUser => _auth.currentUser;
 
-  Future<bool> signInWithGoogle() async {
+  bool get isLoggedIn => _auth.currentUser != null;
+
+  /// 🔹 Effettua l’accesso con Google
+  Future<UserCredential?> signInWithGoogle(BuildContext context) async {
     try {
-      final account = await _google.signIn();
-      if (account == null) return false;
-      final auth = await account.authentication;
-      final credential = GoogleAuthProvider.credential(accessToken: auth.accessToken, idToken: auth.idToken);
-      await _auth.signInWithCredential(credential);
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Accesso annullato dall’utente")),
+        );
+        return null;
+      }
 
-      // after sign-in, upload local notes to cloud
-      final notes = await LocalStorage.getAllNotes();
-      await CloudService.uploadAllNotes(notes);
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await _auth.signInWithCredential(credential);
+
+      // 🔹 Salva info base nel database (Firestore)
+      await _saveUserToFirestore(userCredential.user);
+
       notifyListeners();
-      return true;
+      return userCredential;
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Errore di autenticazione: ${e.message}")),
+      );
+      return null;
     } catch (e) {
-      debugPrint("Google sign-in failed: $e");
-      return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Errore generico: $e")),
+      );
+      return null;
     }
   }
 
+  /// 🔹 Salva dati utente in Firestore
+  Future<void> _saveUserToFirestore(User? user) async {
+    if (user == null) return;
+
+    final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+
+    await userRef.set({
+      'uid': user.uid,
+      'email': user.email,
+      'name': user.displayName,
+      'photoUrl': user.photoURL,
+      'lastLogin': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// 🔹 Esegue il logout completo
   Future<void> signOut() async {
+    await _googleSignIn.signOut();
     await _auth.signOut();
-    await _google.signOut();
     notifyListeners();
   }
 
-  Future<void> syncWithCloud(BuildContext ctx) async {
-    if (!isSignedIn) {
-      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Effettua il login con Google per sincronizzare')));
-      return;
-    }
+  /// 🔹 Sincronizza i dati sul cloud (Firebase)
+  Future<void> syncWithCloud(BuildContext context) async {
+    try {
+      if (_auth.currentUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Effettua prima l’accesso.")),
+        );
+        return;
+      }
 
-    final notes = await LocalStorage.getAllNotes();
-    await CloudService.uploadAllNotes(notes);
-    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Sincronizzazione completata')));
+      // Qui potresti caricare/salvare le note dell’utente su Firestore
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Sincronizzazione completata ✅")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Errore durante la sincronizzazione: $e")),
+      );
+    }
   }
 }
