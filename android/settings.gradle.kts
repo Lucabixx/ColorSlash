@@ -23,5 +23,6 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.2.20" apply false
 }
 
-// rootProject.name = "ColorSlash"
+rootProject.name = "colorslash"
 include(":app")
+
