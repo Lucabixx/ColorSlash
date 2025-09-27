@@ -10,14 +10,14 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
-    with TickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
   late final AnimationController _entryController;
   late final AnimationController _rotationController;
 
   @override
   void initState() {
     super.initState();
+
     _entryController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
@@ -28,10 +28,11 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(seconds: 6),
     )..repeat();
 
+    // Dopo 4 secondi vai al LoginScreen
     Timer(const Duration(seconds: 4), () {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(builder: (_) => LoginScreen()), // ✅ RIMOSSO const
       );
     });
   }
@@ -43,14 +44,24 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
-  Widget _floatingIcon(IconData icon, Color color, double dx, double dy, double delay) {
+  Widget _floatingIcon(
+    IconData icon,
+    Color color,
+    double dx,
+    double dy,
+    double delay,
+  ) {
     return AnimatedBuilder(
       animation: _entryController,
       builder: (_, __) {
-        final t = Curves.easeOutBack.transform((_entryController.value + delay).clamp(0.0, 1.0));
+        final t = Curves.easeOutBack
+            .transform((_entryController.value + delay).clamp(0.0, 1.0));
         return Transform.translate(
           offset: Offset(dx * (1 - t), dy * (1 - t)),
-          child: Opacity(opacity: t, child: Icon(icon, color: color, size: 44)),
+          child: Opacity(
+            opacity: t,
+            child: Icon(icon, color: color, size: 44),
+          ),
         );
       },
     );
