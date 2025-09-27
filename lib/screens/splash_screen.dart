@@ -12,23 +12,23 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
-  late AnimationController _controller;
-  late AnimationController _rotationController;
+  late final AnimationController _entryController;
+  late final AnimationController _rotationController;
 
   @override
   void initState() {
     super.initState();
-
-    _controller =
-        AnimationController(vsync: this, duration: const Duration(seconds: 2))
-          ..forward();
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..forward();
 
     _rotationController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 5),
+      duration: const Duration(seconds: 6),
     )..repeat();
 
-    Timer(const Duration(seconds: 5), () {
+    Timer(const Duration(seconds: 4), () {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -38,19 +38,19 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _entryController.dispose();
     _rotationController.dispose();
     super.dispose();
   }
 
-  Widget _floatingIcon(IconData icon, Color color, double dx, double dy) {
+  Widget _floatingIcon(IconData icon, Color color, double dx, double dy, double delay) {
     return AnimatedBuilder(
-      animation: _controller,
+      animation: _entryController,
       builder: (_, __) {
-        final double t = Curves.easeOutBack.transform(_controller.value);
+        final t = Curves.easeOutBack.transform((_entryController.value + delay).clamp(0.0, 1.0));
         return Transform.translate(
           offset: Offset(dx * (1 - t), dy * (1 - t)),
-          child: Opacity(opacity: t, child: Icon(icon, color: color, size: 38)),
+          child: Opacity(opacity: t, child: Icon(icon, color: color, size: 44)),
         );
       },
     );
@@ -68,35 +68,37 @@ class _SplashScreenState extends State<SplashScreen>
               Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Colors.black, Colors.blueGrey],
+                    colors: [Color(0xFF020617), Color(0xFF061826)],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
                 ),
               ),
+
+              // rotating logo (3D-like)
               Transform(
                 alignment: Alignment.center,
                 transform: Matrix4.identity()
+                  ..setEntry(3, 2, 0.001)
                   ..rotateY(2 * pi * _rotationController.value),
                 child: Image.asset(
                   'assets/icon.png',
-                  width: 150,
-                  height: 150,
+                  width: 160,
+                  height: 160,
                 ),
               ),
-              _floatingIcon(Icons.mic, Colors.redAccent, -90, -110),
-              _floatingIcon(Icons.edit, Colors.orangeAccent, 100, -100),
-              _floatingIcon(Icons.camera_alt, Colors.cyanAccent, -120, 100),
-              _floatingIcon(Icons.videocam, Colors.greenAccent, 100, 120),
+
+              // floating icons
+              _floatingIcon(Icons.mic, Colors.redAccent, -120, -120, 0.0),
+              _floatingIcon(Icons.edit, Colors.orangeAccent, 120, -100, 0.05),
+              _floatingIcon(Icons.camera_alt, Colors.cyanAccent, -120, 100, 0.1),
+              _floatingIcon(Icons.videocam, Colors.lightGreenAccent, 120, 120, 0.15),
+
               const Positioned(
-                bottom: 60,
+                bottom: 56,
                 child: Text(
-                  "ColorSlash - Versione di Test BETA1",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white70,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  'ColorSlash - Versione di Test BETA1',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
                 ),
               ),
             ],
