@@ -1,29 +1,29 @@
 import java.util.Properties
 import java.io.FileInputStream
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services") version "4.4.3" // Google services si applica QUI
-    id("com.google.firebase.crashlytics") version "3.0.6" 
+    id("com.google.firebase.crashlytics") version "3.0.6"
 }
 
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties()
-
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 android {
     namespace = "app.lucabixx.colorslash"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "app.lucabixx.colorslash"
         minSdk = 21
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "0.1"
         multiDexEnabled = true
@@ -31,7 +31,7 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file(keystoreProperties["storeFile"] ?: "keystore.jks")
+            storeFile = file(keystoreProperties["storeFile"]?.toString() ?: "keystore.jks")
             storePassword = keystoreProperties["storePassword"]?.toString() ?: "140596"
             keyAlias = keystoreProperties["keyAlias"]?.toString() ?: "upload"
             keyPassword = keystoreProperties["keyPassword"]?.toString() ?: "140596"
@@ -60,8 +60,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+    kotlin {
+        jvmToolchain(17)
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
     }
 
     buildFeatures {
@@ -75,18 +78,10 @@ flutter {
 
 dependencies {
     implementation("androidx.multidex:multidex:2.0.1")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.25")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.20")
 }
-android {
-    namespace = "app.lucabixx.colorslash"
-    compileSdk = 36
-    ndkVersion = flutter.ndkVersion
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-	    
+
 signingConfigs {
     create("release") {
         storeFile = file("../keystore.jks")
@@ -112,5 +107,9 @@ flutter {
     source = "../.."
  }
 
+dependencies {
+    implementation("androidx.multidex:multidex:2.0.1")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.20")
 }
+
 
