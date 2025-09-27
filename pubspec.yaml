@@ -1,6 +1,6 @@
 name: colorslash
 description: Un'app di note multimediali - Versione di Test BETA1
-version: 0.1.0
+version: 0.1+1
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -8,19 +8,44 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+  # UI / state
   provider: ^6.1.2
+
+  # Firebase
   firebase_core: ^3.4.0
   firebase_auth: ^5.3.0
+  cloud_firestore: ^5.4.0
   firebase_storage: ^12.3.0
   google_sign_in: ^6.2.1
+
+  # Storage locale
   shared_preferences: ^2.3.2
-  image_picker: ^1.1.2 
-  cloud_firestore: ^5.5.0  
-  audioplayers: ^6.0.0  
-  path_provider: ^2.1.4
+  path_provider: ^2.0.11
+  uuid: ^4.2.0
+
+  # Media
+  image_picker: ^0.8.7+4
+  video_player: ^2.10.0
+  flutter_sound: ^9.28.0
+  file_picker: ^5.2.5
+  permission_handler: ^12.0.1
+  signature: ^5.5.0
+  audioplayers: ^6.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
   assets:
     - assets/icon.png
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon.png"
+
 
