@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
 import 'services/auth_service.dart';
 import 'screens/splash_screen.dart';
 
@@ -21,12 +19,11 @@ class ColorSlashApp extends StatelessWidget {
       create: (_) => AuthService(),
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        title: "ColorSlash - Versione di Test BETA1",
+        title: 'ColorSlash - Versione di Test BETA1',
         theme: ThemeData(
           brightness: Brightness.dark,
           primarySwatch: Colors.blue,
           scaffoldBackgroundColor: Colors.black,
-          fontFamily: 'Roboto',
         ),
         home: const SplashScreen(),
       ),
