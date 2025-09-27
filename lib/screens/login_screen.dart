@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/auth_service.dart';
-import 'home_screen.dart';
+import 'package:colorslash/services/auth_service.dart';
+import 'package:colorslash/screens/home_screen.dart';
+import 'package:colorslash/screens/register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,113 +12,146 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  bool loading = false;
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+
+  Future<void> _loginWithEmail() async {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    setState(() => _isLoading = true);
+
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Inserisci email e password")),
+      );
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    final success = await auth.signInWithEmail(email, password);
+
+    setState(() => _isLoading = false);
+
+    if (success) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Credenziali non valide")),
+      );
+    }
+  }
+
+  Future<void> _loginWithGoogle() async {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    setState(() => _isLoading = true);
+
+    final user = await auth.signInWithGoogle();
+
+    setState(() => _isLoading = false);
+
+    if (user != null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Accesso con Google non riuscito")),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.read<AuthService>();
-
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text("ColorSlash - Login"),
-        backgroundColor: Colors.blueAccent,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Center(
+      backgroundColor: Colors.deepPurple.shade50,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 30.0),
           child: SingleChildScrollView(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.palette, size: 90, color: Colors.blueAccent),
-                const SizedBox(height: 16),
+                const SizedBox(height: 50),
+                const Icon(Icons.color_lens, size: 80, color: Colors.deepPurple),
+                const SizedBox(height: 20),
                 const Text(
-                  "Benvenuto in ColorSlash",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                  "Benvenuto su ColorSlash",
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 30),
+
+                // Email
                 TextField(
-                  controller: emailController,
+                  controller: _emailController,
                   decoration: const InputDecoration(
                     labelText: "Email",
-                    labelStyle: TextStyle(color: Colors.white70),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.blueAccent),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.blueAccent, width: 2),
-                    ),
+                    prefixIcon: Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(),
                   ),
-                  style: const TextStyle(color: Colors.white),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
+
+                // Password
                 TextField(
-                  controller: passwordController,
+                  controller: _passwordController,
                   obscureText: true,
                   decoration: const InputDecoration(
                     labelText: "Password",
-                    labelStyle: TextStyle(color: Colors.white70),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.blueAccent),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.blueAccent, width: 2),
-                    ),
+                    prefixIcon: Icon(Icons.lock_outline),
+                    border: OutlineInputBorder(),
                   ),
-                  style: const TextStyle(color: Colors.white),
                 ),
-                const SizedBox(height: 24),
-                loading
-                    ? const CircularProgressIndicator(color: Colors.blueAccent)
-                    : ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent,
-                          padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 14),
+                const SizedBox(height: 30),
+
+                // Bottone Login
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _loginWithEmail,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    minimumSize: const Size(double.infinity, 50),
+                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          "Accedi",
+                          style: TextStyle(fontSize: 18, color: Colors.white),
                         ),
-                        onPressed: () async {
-                          setState(() => loading = true);
-                          final success = await auth.signInWithEmail(
-                            emailController.text.trim(),
-                            passwordController.text.trim(),
-                          );
-                          setState(() => loading = false);
+                ),
+                const SizedBox(height: 15),
 
-                          if (success && mounted) {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(builder: (_) => const HomeScreen()),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Errore di login. Controlla le credenziali.")),
-                            );
-                          }
-                        },
-                        child: const Text("Accedi", style: TextStyle(color: Colors.white)),
-                      ),
-                const SizedBox(height: 16),
-                TextButton.icon(
-                  icon: const Icon(Icons.g_mobiledata, color: Colors.white),
-                  label: const Text("Accedi con Google", style: TextStyle(color: Colors.white)),
-                  onPressed: () async {
-                    setState(() => loading = true);
-                    final user = await auth.signInWithGoogle();
-                    setState(() => loading = false);
+                // Login con Google
+                OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _loginWithGoogle,
+                  icon: const Icon(Icons.login),
+                  label: const Text("Accedi con Google"),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 50),
+                  ),
+                ),
+                const SizedBox(height: 20),
 
-                    if (user != null && mounted) {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const HomeScreen()),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Accesso Google non riuscito.")),
-                      );
-                    }
-                  },
+                // Naviga a Registrazione
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("Non hai un account? "),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const RegisterScreen()),
+                        );
+                      },
+                      child: const Text("Registrati"),
+                    ),
+                  ],
                 ),
               ],
             ),
