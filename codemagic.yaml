@@ -1,60 +1,52 @@
 workflows:
-      android-apk-release:
-    name: Android APK Release Workflow
+  flutter-ci-release:
+    name: Flutter CI/CD - ColorSlash
     max_build_duration: 60
-  flutter-build:
-    name: Flutter build
-    environment:
-      flutter: stable
-    scripts:
+    instance_type: mac_mini_m2
 
     environment:
       flutter: stable
-      java: 17
-      - name: clean
-       script: flutter clean
-      - name: Get packages
-        script: flutter pub get
-      - name: Generate launcher icons
-        script: flutter pub run flutter_launcher_icons:main
-      - name: Build APK
-        script: flutter build apk --release
-    artifacts:
-      - build/app/outputs/flutter-apk/app-release.apk
- publishing:
-      email:
-        recipients:
-          - luca.bixx@hotmail.it
-      
+      xcode: latest
+      vars:
+        KEYSTORE_PATH: "android/app/keystore.jks"
+        KEY_ALIAS: "upload"
+      groups:
+        - keystore_credentials
 
-workflows:
-  android-apk-debug:
-    name: Android APK Debug Workflow
-    max_build_duration: 60
-    environment:
-      flutter: stable
-      java: 17
     scripts:
-      - name: Pulizia e dipendenze
+      - name: Flutter clean
         script: |
           flutter clean
+      - name: Install dependencies
+        script: |
           flutter pub get
-
-      - name: Build APK debug
+      - name: Generate launcher icons
+        script: |
+          flutter pub run flutter_launcher_icons:main
+      - name: Build Debug APK
         script: |
           flutter build apk --debug
+      - name: Build Release APK
+        script: |
+          flutter build apk --release \
+            --build-name=0.1 \
+            --build-number=1 \
+            --dart-define=FLAVOR=production
+      - name: Build iOS release
+        script: |
+          flutter build ios --release --no-codesign
+
     artifacts:
+      - build/app/outputs/flutter-apk/app-release.apk
       - build/app/outputs/flutter-apk/app-debug.apk
-   
+      - build/ios/iphoneos/*.app
+      - build/ios/iphoneos/*.ipa
+      - build/**/*.aab
 
-
-    scripts:
-      - name: Aggiorna dipendenze Flutter
-        script: |
-          flutter pub upgrade --major-versions
-      - name: Pulizia progetto
-        script: |
-      
-          flutter clean
-          flutter pub get
-         
+    publishing:
+      email:
+        recipients:
+          - luca.bixx93@gmail.com 
+        notify:
+          success: true
+          failure: true
