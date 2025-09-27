@@ -23,6 +23,8 @@ signingConfigs {
         storePassword = "140596"
         keyAlias = "upload"
         keyPassword = "140596"
+        minifyEnabled false
+        shrinkResources false
     }
 }
 
@@ -40,4 +42,5 @@ signingConfigs {
 flutter {
     source = "../.."
  }
+
 }
