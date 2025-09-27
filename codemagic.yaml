@@ -15,6 +15,8 @@ workflows:
         - keystore_credentials
 
     scripts:
+      - rm -rf ~/.pub-cache
+      - rm -rf ~/.gradle/caches
       - name: Flutter clean
         script: |
           flutter clean
@@ -56,6 +58,7 @@ workflows:
         notify:
           success: true
           failure: true
+
 
 
 
