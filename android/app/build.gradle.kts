@@ -19,12 +19,12 @@ android {
 	    
 signingConfigs {
     create("release") {
-        storeFile = file("keystore.jks")
+        storeFile = file("../keystore.jks")
         storePassword = "140596"
         keyAlias = "upload"
         keyPassword = "140596"
-        minifyEnabled false
-        shrinkResources false
+        is MinifyEnabled = false
+        isShrinkResources = false
     }
 }
 
