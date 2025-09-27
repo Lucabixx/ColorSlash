@@ -1,12 +1,13 @@
+// lib/services/auth_service.dart
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'cloud_service.dart';
+import 'local_storage.dart';
 
 class AuthService extends ChangeNotifier {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _google = GoogleSignIn();
-  final CloudService _cloud = CloudService();
+  final _google = GoogleSignIn();
+  final _auth = FirebaseAuth.instance;
 
   bool get isSignedIn => _auth.currentUser != null;
 
@@ -14,16 +15,17 @@ class AuthService extends ChangeNotifier {
     try {
       final account = await _google.signIn();
       if (account == null) return false;
-      final authData = await account.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: authData.accessToken,
-        idToken: authData.idToken,
-      );
+      final auth = await account.authentication;
+      final credential = GoogleAuthProvider.credential(accessToken: auth.accessToken, idToken: auth.idToken);
       await _auth.signInWithCredential(credential);
+
+      // after sign-in, upload local notes to cloud
+      final notes = await LocalStorage.getAllNotes();
+      await CloudService.uploadAllNotes(notes);
       notifyListeners();
       return true;
     } catch (e) {
-      debugPrint("Errore login Google: $e");
+      debugPrint("Google sign-in failed: $e");
       return false;
     }
   }
@@ -34,16 +36,14 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> syncWithCloud(BuildContext context) async {
+  Future<void> syncWithCloud(BuildContext ctx) async {
     if (!isSignedIn) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Effettua il login con Google")),
-      );
+      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Effettua il login con Google per sincronizzare')));
       return;
     }
-    await _cloud.uploadAllNotes();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Sincronizzazione completata ✅")),
-    );
+
+    final notes = await LocalStorage.getAllNotes();
+    await CloudService.uploadAllNotes(notes);
+    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Sincronizzazione completata')));
   }
 }
