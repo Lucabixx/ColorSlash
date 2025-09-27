@@ -1,21 +1,38 @@
+// lib/services/local_storage.dart
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalStorage {
-  Future<void> saveNote(String id, Map<String, dynamic> data) async {
+  /// Save note as JSON string under its id
+  static Future<void> saveNote(String id, Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.setString(id, jsonEncode(data));
+    await prefs.setString(id, jsonEncode(data));
   }
 
-  Future<Map<String, dynamic>?> getNote(String id) async {
+  static Future<Map<String, dynamic>?> getNote(String id) async {
     final prefs = await SharedPreferences.getInstance();
-    final json = prefs.getString(id);
-    if (json == null) return null;
-    return jsonDecode(json);
+    final s = prefs.getString(id);
+    if (s == null) return null;
+    return jsonDecode(s) as Map<String, dynamic>;
   }
 
-  Future<void> deleteNote(String id) async {
+  static Future<List<Map<String, dynamic>>> getAllNotes() async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.remove(id);
+    final keys = prefs.getKeys().where((k) => !k.startsWith('__')).toList();
+    final List<Map<String, dynamic>> res = [];
+    for (var k in keys) {
+      final s = prefs.getString(k);
+      if (s == null) continue;
+      try {
+        final m = jsonDecode(s) as Map<String, dynamic>;
+        res.add(m);
+      } catch (_) {}
+    }
+    return res;
+  }
+
+  static Future<void> deleteNote(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(id);
   }
 }
