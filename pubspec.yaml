@@ -43,14 +43,10 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon.png
+    - assets/google_icon.png  # aggiunto qui correttamente
 
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/icon.png"
-
- google_icon:
-  android: true
-  ios: true
-  image_path: "assets/google_icon.png"
-// _icon:
+  
+image_path: "assets/icon.png"
