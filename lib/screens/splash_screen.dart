@@ -1,7 +1,7 @@
-import 'package:colorslash/screens/home_screen.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:colorslash/screens/home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -10,7 +10,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
   late final AnimationController _entryController;
   late final AnimationController _rotationController;
 
@@ -28,11 +29,11 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       duration: const Duration(seconds: 6),
     )..repeat();
 
-    // Dopo 4 secondi vai al LoginScreen
+    // Naviga alla HomeScreen dopo 4 secondi
     Timer(const Duration(seconds: 4), () {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => LoginScreen()), // ✅ RIMOSSO const
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
     });
   }
@@ -44,13 +45,9 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     super.dispose();
   }
 
+  /// Icone fluttuanti animate
   Widget _floatingIcon(
-    IconData icon,
-    Color color,
-    double dx,
-    double dy,
-    double delay,
-  ) {
+      IconData icon, Color color, double dx, double dy, double delay) {
     return AnimatedBuilder(
       animation: _entryController,
       builder: (_, __) {
@@ -58,10 +55,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
             .transform((_entryController.value + delay).clamp(0.0, 1.0));
         return Transform.translate(
           offset: Offset(dx * (1 - t), dy * (1 - t)),
-          child: Opacity(
-            opacity: t,
-            child: Icon(icon, color: color, size: 44),
-          ),
+          child: Opacity(opacity: t, child: Icon(icon, color: color, size: 44)),
         );
       },
     );
@@ -76,6 +70,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
           return Stack(
             alignment: Alignment.center,
             children: [
+              // Sfondo gradiente
               Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
@@ -86,7 +81,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 ),
               ),
 
-              // rotating logo (3D-like)
+              // Logo rotante 3D
               Transform(
                 alignment: Alignment.center,
                 transform: Matrix4.identity()
@@ -99,12 +94,14 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 ),
               ),
 
-              // floating icons
+              // Icone fluttuanti intorno al logo
               _floatingIcon(Icons.mic, Colors.redAccent, -120, -120, 0.0),
               _floatingIcon(Icons.edit, Colors.orangeAccent, 120, -100, 0.05),
               _floatingIcon(Icons.camera_alt, Colors.cyanAccent, -120, 100, 0.1),
-              _floatingIcon(Icons.videocam, Colors.lightGreenAccent, 120, 120, 0.15),
+              _floatingIcon(
+                  Icons.videocam, Colors.lightGreenAccent, 120, 120, 0.15),
 
+              // Testo in basso
               const Positioned(
                 bottom: 56,
                 child: Text(
