@@ -1,12 +1,82 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
-    id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services") version "4.4.3" // Google services si applica QUI
-    id("com.google.firebase.crashlytics") version "3.0.6" // Crashlytics qui
+    id("com.google.firebase.crashlytics") version "3.0.6" 
 }
 
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties()
+
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    namespace = "app.lucabixx.colorslash"
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "app.lucabixx.colorslash"
+        minSdk = 21
+        targetSdk = 35
+        versionCode = 1
+        versionName = "0.1"
+        multiDexEnabled = true
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file(keystoreProperties["storeFile"] ?: "keystore.jks")
+            storePassword = keystoreProperties["storePassword"]?.toString() ?: "140596"
+            keyAlias = keystoreProperties["keyAlias"]?.toString() ?: "upload"
+            keyPassword = keystoreProperties["keyPassword"]?.toString() ?: "140596"
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            isShrinkResources = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+
+        getByName("debug") {
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    buildFeatures {
+        viewBinding = true
+    }
+}
+
+flutter {
+    source = "../.."
+}
+
+dependencies {
+    implementation("androidx.multidex:multidex:2.0.1")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.25")
+}
 android {
     namespace = "app.lucabixx.colorslash"
     compileSdk = 36
@@ -43,3 +113,4 @@ flutter {
  }
 
 }
+
