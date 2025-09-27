@@ -23,7 +23,7 @@ signingConfigs {
         storePassword = "140596"
         keyAlias = "upload"
         keyPassword = "140596"
-        is MinifyEnabled = false
+        isMinifyEnabled = false
         isShrinkResources = false
     }
 }
