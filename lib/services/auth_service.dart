@@ -5,22 +5,41 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   User? get currentUser => _auth.currentUser;
 
-  bool get isLoggedIn => _auth.currentUser != null;
+  /// 🔹 Login con Email e Password
+  Future<bool> signInWithEmail(String email, String password) async {
+    try {
+      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      notifyListeners();
+      return true;
+    } on FirebaseAuthException catch (e) {
+      debugPrint("Errore login email: ${e.message}");
+      return false;
+    }
+  }
 
-  /// 🔹 Effettua l’accesso con Google
-  Future<UserCredential?> signInWithGoogle(BuildContext context) async {
+  /// 🔹 Registrazione con Email e Password
+  Future<bool> registerWithEmail(String email, String password) async {
+    try {
+      await _auth.createUserWithEmailAndPassword(
+          email: email, password: password);
+      notifyListeners();
+      return true;
+    } on FirebaseAuthException catch (e) {
+      debugPrint("Errore registrazione: ${e.message}");
+      return false;
+    }
+  }
+
+  /// 🔹 Login con Google
+  Future<User?> signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Accesso annullato dall’utente")),
-        );
-        return null;
-      }
+      if (googleUser == null) return null;
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
@@ -31,65 +50,49 @@ class AuthService extends ChangeNotifier {
       );
 
       final userCredential = await _auth.signInWithCredential(credential);
+      final user = userCredential.user;
 
-      // 🔹 Salva info base nel database (Firestore)
-      await _saveUserToFirestore(userCredential.user);
-
-      notifyListeners();
-      return userCredential;
-    } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Errore di autenticazione: ${e.message}")),
-      );
-      return null;
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Errore generico: $e")),
-      );
-      return null;
-    }
-  }
-
-  /// 🔹 Salva dati utente in Firestore
-  Future<void> _saveUserToFirestore(User? user) async {
-    if (user == null) return;
-
-    final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-
-    await userRef.set({
-      'uid': user.uid,
-      'email': user.email,
-      'name': user.displayName,
-      'photoUrl': user.photoURL,
-      'lastLogin': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-  }
-
-  /// 🔹 Esegue il logout completo
-  Future<void> signOut() async {
-    await _googleSignIn.signOut();
-    await _auth.signOut();
-    notifyListeners();
-  }
-
-  /// 🔹 Sincronizza i dati sul cloud (Firebase)
-  Future<void> syncWithCloud(BuildContext context) async {
-    try {
-      if (_auth.currentUser == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Effettua prima l’accesso.")),
-        );
-        return;
+      // Se nuovo utente, crealo su Firestore
+      if (user != null) {
+        final docRef = _firestore.collection('users').doc(user.uid);
+        if (!(await docRef.get()).exists) {
+          await docRef.set({
+            'email': user.email,
+            'name': user.displayName,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
       }
 
-      // Qui potresti caricare/salvare le note dell’utente su Firestore
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Sincronizzazione completata ✅")),
-      );
+      notifyListeners();
+      return user;
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Errore durante la sincronizzazione: $e")),
-      );
+      debugPrint("Errore Google Sign-In: $e");
+      return null;
     }
+  }
+
+  /// 🔹 Logout
+  Future<void> signOut() async {
+    try {
+      await _auth.signOut();
+      await _googleSignIn.signOut();
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Errore logout: $e");
+    }
+  }
+
+  /// 🔹 Mock: sincronizza con il cloud
+  Future<void> syncWithCloud(BuildContext context) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Sincronizzazione con il cloud...")),
+    );
+
+    await Future.delayed(const Duration(seconds: 2));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("✅ Sincronizzazione completata")),
+    );
   }
 }
