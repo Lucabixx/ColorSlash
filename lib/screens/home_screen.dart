@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:colorslash/utils/app_colors.dart';
@@ -19,7 +18,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String search = "";
   String filterType = "tutti";
-  bool _isSyncing = false;
 
   @override
   Widget build(BuildContext context) {
@@ -52,35 +50,17 @@ class _HomeScreenState extends State<HomeScreen> {
           PopupMenuButton<String>(
             icon: const Icon(Icons.filter_alt_outlined),
             onSelected: (val) => setState(() => filterType = val),
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: "tutti", child: Text("Tutti")),
-              PopupMenuItem(value: "note", child: Text("Solo Note")),
-              PopupMenuItem(value: "list", child: Text("Solo Liste")),
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: "tutti", child: Text("Tutti")),
+              const PopupMenuItem(value: "note", child: Text("Solo Note")),
+              const PopupMenuItem(value: "list", child: Text("Solo Liste")),
             ],
           ),
-          if (auth.currentUser != null)
-            IconButton(
-              icon: _isSyncing
-                  ? const Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.sync),
-              tooltip: "Sincronizza con Cloud",
-              onPressed: () async {
-                setState(() => _isSyncing = true);
-                await noteService.syncWithCloud(auth);
-                setState(() => _isSyncing = false);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Sincronizzazione completata")),
-                  );
-                }
-              },
-            ),
+          IconButton(
+            icon: const Icon(Icons.sync),
+            tooltip: "Sincronizza con Cloud",
+            onPressed: () => auth.syncWithCloud(context),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: "Esci",
@@ -134,7 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     itemBuilder: (context, i) {
                       final note = filteredNotes[i];
                       final color = Color(
-                        int.parse(note.colorHex.replaceFirst('#', '0x')),
+                        int.tryParse(note.colorHex.replaceFirst('#', '0xFF')) ?? 0xFF1E1E1E,
                       );
 
                       return Card(
@@ -142,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         margin: const EdgeInsets.symmetric(vertical: 6),
                         child: ListTile(
                           title: Text(
-                            note.title.isEmpty ? "(Senza titolo)" : note.title,
+                            note.title,
                             style: const TextStyle(color: Colors.white, fontSize: 18),
                           ),
                           subtitle: Text(
@@ -214,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       ListTile(
                         leading: const Icon(Icons.note_add, color: AppColors.primaryLight),
-                        title: const Text('Nuova Nota'),
+                        title: const Text('Nuova Nota', style: TextStyle(color: Colors.white)),
                         onTap: () {
                           Navigator.pop(ctx);
                           _createNewNote("note");
@@ -222,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       ListTile(
                         leading: const Icon(Icons.checklist, color: AppColors.primaryLight),
-                        title: const Text('Nuova Lista'),
+                        title: const Text('Nuova Lista', style: TextStyle(color: Colors.white)),
                         onTap: () {
                           Navigator.pop(ctx);
                           _createNewNote("list");
@@ -245,9 +225,13 @@ class _HomeScreenState extends State<HomeScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => NoteEditorScreen(type: type),
+        builder: (_) => NoteEditorScreen(
+          noteId: DateTime.now().millisecondsSinceEpoch.toString(),
+          type: type,
+        ),
       ),
     );
+    setState(() {});
   }
 
   /// 🔹 Apre una nota esistente
@@ -256,14 +240,15 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => NoteEditorScreen(
-          existingNote: note,
+          noteId: note.id,
           type: note.type,
         ),
       ),
     );
+    setState(() {});
   }
 
-  /// 🔹 Mostra anteprima (brevi contenuti + immagini)
+  /// 🔹 Mostra anteprima con titolo, testo, immagini e pulsante "Apri nota completa"
   void _showPreview(NoteModel note) {
     showModalBottomSheet(
       backgroundColor: AppColors.surface,
@@ -275,11 +260,11 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.all(16),
         child: SingleChildScrollView(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                note.title.isEmpty ? "(Senza titolo)" : note.title,
+                note.title,
                 style: const TextStyle(
                   color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
               ),
@@ -293,38 +278,50 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 16),
 
               if (note.attachments.isNotEmpty)
-                SizedBox(
-                  height: 100,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: note.attachments
-                        .where((a) => a.type == "image")
-                        .map((a) => Padding(
-                              padding: const EdgeInsets.only(right: 10),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: File(a.url).existsSync()
-                                    ? Image.file(
-                                        File(a.url),
-                                        height: 100,
-                                        width: 100,
-                                        fit: BoxFit.cover,
-                                      )
-                                    : Container(
-                                        height: 100,
-                                        width: 100,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Media allegati:",
+                      style: TextStyle(
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 15),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 100,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: note.attachments
+                            .where((a) => a.type == "image")
+                            .map((a) => Padding(
+                                  padding: const EdgeInsets.only(right: 10),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.network(
+                                      a.url,
+                                      height: 100,
+                                      width: 100,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(
                                         color: Colors.grey[800],
-                                        child: const Icon(Icons.broken_image,
-                                            color: Colors.white38),
+                                        child: const Icon(Icons.broken_image, color: Colors.white38),
                                       ),
-                              ),
-                            ))
-                        .toList(),
-                  ),
+                                    ),
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                    ),
+                  ],
                 ),
 
               const SizedBox(height: 20),
-              Center(
+
+              // 🔹 Pulsante per aprire la nota
+              Align(
+                alignment: Alignment.center,
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.open_in_new),
                   label: const Text("Apri nota completa"),
