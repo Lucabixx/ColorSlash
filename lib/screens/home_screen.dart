@@ -51,107 +51,78 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.redAccent,
-        child: const Icon(Icons.add, size: 30),
-        onPressed: () async {
-          final newNote = await _showNoteDialog(context);
-          if (newNote != null) noteService.addNote(newNote);
-        },
+    ),
+
+floatingActionButton: Container(
+  decoration: BoxDecoration(
+    shape: BoxShape.circle,
+    boxShadow: [
+      BoxShadow(
+        color: AppColors.primaryLight.withOpacity(0.8),
+        blurRadius: 20,
+        spreadRadius: 4,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          children: [
-            TextField(
-              decoration: InputDecoration(
-                hintText: "Cerca note...",
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.white10,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
+      BoxShadow(
+        color: AppColors.primaryDark.withOpacity(0.6),
+        blurRadius: 40,
+        spreadRadius: 10,
+      ),
+    ],
+  ),
+  child: FloatingActionButton(
+    backgroundColor: AppColors.primary,
+    elevation: 14,
+    child: ShaderMask(
+      shaderCallback: (bounds) => const LinearGradient(
+        colors: [
+          AppColors.primaryLight,
+          AppColors.primary,
+          AppColors.primaryDark,
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ).createShader(bounds),
+      child: const Icon(Icons.add, size: 34, color: Colors.white),
+    ),
+    onPressed: () {
+      showModalBottomSheet(
+        backgroundColor: AppColors.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        context: context,
+        builder: (ctx) {
+          return Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.note_add, color: AppColors.primaryLight),
+                  title: const Text('Nuova Nota'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _addOrEditNote({'type': 'note'});
+                  },
                 ),
-              ),
-              style: const TextStyle(color: Colors.white),
-              onChanged: (val) => setState(() => search = val),
+                ListTile(
+                  leading: const Icon(Icons.checklist, color: AppColors.primaryLight),
+                  title: const Text('Nuova Lista'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _addOrEditNote({'type': 'list'});
+                  },
+                ),
+                const SizedBox(height: 10),
+              ],
             ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: filteredNotes.isEmpty
-                  ? const Center(
-                      child: Text(
-                        "Nessuna nota trovata.\nTocca '+' per aggiungerne una!",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white70, fontSize: 16),
-                      ),
-                    )
-                  : GridView.builder(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 4 / 3,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                      ),
-                      itemCount: filteredNotes.length,
-                      itemBuilder: (context, index) {
-                        final note = filteredNotes[index];
-                        return GestureDetector(
-                          onTap: () async {
-                            final updated = await _showNoteDialog(
-                              context,
-                              existing: note,
-                            );
-                            if (updated != null) {
-                              noteService.updateNote(note.id, updated);
-                            }
-                          },
-                          onLongPress: () =>
-                              noteService.deleteNote(note.id, context),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: note.color,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: note.color.withOpacity(0.3),
-                                  blurRadius: 8,
-                                  spreadRadius: 2,
-                                )
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _highlight(note.title, search),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Expanded(
-                                  child: SingleChildScrollView(
-                                    child: Text(
-                                      _highlight(note.content, search),
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+          );
+        },
+      );
+    },
+  ),
+),
+    
             ),
           ],
         ),
@@ -262,3 +233,4 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+
