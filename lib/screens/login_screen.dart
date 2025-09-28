@@ -31,11 +31,10 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    final success = await auth.signInWithEmail(email, password);
-
+    final user = await auth.signInWithEmail(email, password);
     setState(() => _isLoading = false);
 
-    if (success) {
+    if (user != null) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
