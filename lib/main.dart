@@ -29,12 +29,13 @@ class ColorSlashApp extends StatelessWidget {
             centerTitle: true,
           ),
           textTheme: const TextTheme(
-            bodyText1: TextStyle(color: Colors.white70),
-            bodyText2: TextStyle(color: Colors.white70),
-          ),
+          bodyLarge: TextStyle(color: Colors.white70),
+          bodyMedium: TextStyle(color: Colors.white70),
+        ),
         ),
         home: const SplashScreen(),
       ),
     );
   }
 }
+
