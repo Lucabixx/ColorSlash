@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/auth_service.dart';
-import 'login_screen.dart';
+import 'package:colorslash/services/auth_service.dart';
+import 'package:colorslash/screens/home_screen.dart';
+import 'package:colorslash/screens/login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -13,126 +14,111 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-
   bool _isLoading = false;
 
   Future<void> _register() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-    final confirmPassword = _confirmPasswordController.text.trim();
-
-    if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Compila tutti i campi.")),
-      );
-      return;
-    }
-
-    if (password != confirmPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Le password non corrispondono.")),
-      );
-      return;
-    }
-
+    final auth = Provider.of<AuthService>(context, listen: false);
     setState(() => _isLoading = true);
 
-    try {
-      final auth = Provider.of<AuthService>(context, listen: false);
-      final success = await auth.signUpWithEmail(email, password);
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Registrazione completata!")),
-        );
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Errore durante la registrazione.")),
-        );
-      }
-    } catch (e) {
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Errore: ${e.toString()}")),
+        const SnackBar(content: Text("Inserisci email e password")),
       );
-    } finally {
       setState(() => _isLoading = false);
+      return;
     }
-  }
 
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    super.dispose();
+    final user = await auth.registerWithEmail(email, password);
+    setState(() => _isLoading = false);
+
+    if (user != null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Registrazione non riuscita")),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Registrati"),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Center(
+      backgroundColor: Colors.deepPurple.shade50,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 30.0),
           child: SingleChildScrollView(
             child: Column(
               children: [
-                const Icon(Icons.person_add, size: 80, color: Colors.blueAccent),
+                const Icon(Icons.person_add, size: 80, color: Colors.deepPurple),
                 const SizedBox(height: 20),
+                const Text(
+                  "Crea un account",
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 30),
+
+                // Email
                 TextField(
                   controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
                     labelText: "Email",
+                    prefixIcon: Icon(Icons.email_outlined),
                     border: OutlineInputBorder(),
                   ),
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 20),
+
+                // Password
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
                   decoration: const InputDecoration(
                     labelText: "Password",
+                    prefixIcon: Icon(Icons.lock_outline),
                     border: OutlineInputBorder(),
                   ),
                 ),
-                const SizedBox(height: 15),
-                TextField(
-                  controller: _confirmPasswordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: "Conferma Password",
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 25),
+                const SizedBox(height: 30),
+
+                // Bottone Registrati
                 ElevatedButton(
                   onPressed: _isLoading ? null : _register,
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
                     minimumSize: const Size(double.infinity, 50),
                   ),
                   child: _isLoading
-                      ? const CircularProgressIndicator()
-                      : const Text("Crea account"),
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          "Registrati",
+                          style: TextStyle(fontSize: 18, color: Colors.white),
+                        ),
                 ),
                 const SizedBox(height: 15),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    );
-                  },
-                  child: const Text("Hai già un account? Accedi"),
+
+                // Vai al Login
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("Hai già un account? "),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const LoginScreen()),
+                        );
+                      },
+                      child: const Text("Accedi"),
+                    ),
+                  ],
                 ),
               ],
             ),
