@@ -12,7 +12,20 @@
           "package_name": "app.lucabixx.colorslash"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "194515648643-5ia1laenvvgqj784jgl3ksco07v2f3i2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "app.lucabixx.colorslash",
+            "certificate_hash": "96722a7a1e2daa5d967b1a070ae17bea0504695c"
+          }
+        },
+        {
+          "client_id": "194515648643-lrnj8dqhalr81cnqquq7uqfg24b881td.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBAb1DKcIo4xOFWTYejAf1Ncvfa3wEw4O0"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "194515648643-lrnj8dqhalr81cnqquq7uqfg24b881td.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "194515648643-3l31jk6cdm4kpbee5n0bodpng0sb2atu.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "app.lucabixx.colorslash"
+              }
+            }
+          ]
         }
       }
     }
