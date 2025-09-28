@@ -8,6 +8,7 @@ import 'package:colorslash/utils/app_colors.dart';
 
 class MediaViewerScreen extends StatefulWidget {
   final Map<String, dynamic> media;
+
   const MediaViewerScreen({super.key, required this.media});
 
   @override
@@ -15,12 +16,20 @@ class MediaViewerScreen extends StatefulWidget {
 }
 
 class _MediaViewerScreenState extends State<MediaViewerScreen> {
-  Uint8List? _originalImage;
+  img.Image? _originalImage;
   Uint8List? _filteredBytes;
-  bool _loading = true;
 
-  String _filter = "original";
-  String _viewMode = "compare"; // "original", "filtered", "compare"
+  String _filter = "none";
+  String _viewMode = "filtered";
+  bool _showSparkle = false;
+
+  // Slider personalizzati
+  double _brightness = 0.0;
+  double _contrast = 1.0;
+  double _saturation = 1.0;
+  double _temperature = 0.0;
+
+  bool _showAdjustPanel = false;
 
   @override
   void initState() {
@@ -32,259 +41,287 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
     final file = File(widget.media['path']);
     final bytes = await file.readAsBytes();
     setState(() {
-      _originalImage = bytes;
+      _originalImage = img.decodeImage(bytes);
       _filteredBytes = bytes;
-      _loading = false;
     });
   }
 
-  Future<void> _applyFilter(String type) async {
+  Future<void> _applyFilter(String filter) async {
     if (_originalImage == null) return;
-    setState(() => _loading = true);
-
-    final image = img.decodeImage(_originalImage!)!;
-    img.Image filtered;
-
-    switch (type) {
-      case "grayscale":
-        filtered = img.grayscale(image);
-        break;
-      case "sepia":
-        filtered = img.sepia(image);
-        break;
-      case "invert":
-        filtered = img.invert(image);
-        break;
-      case "contrast":
-        filtered = img.adjustColor(image, contrast: 1.5);
-        break;
-      case "bright":
-        filtered = img.adjustColor(image, brightness: 0.2);
-        break;
-      default:
-        filtered = image;
-    }
 
     setState(() {
-      _filteredBytes = Uint8List.fromList(img.encodeJpg(filtered));
-      _filter = type;
-      _loading = false;
+      _filter = filter;
+      _showSparkle = true;
     });
+
+    await Future.delayed(const Duration(milliseconds: 150));
+    setState(() => _showSparkle = false);
+
+    final edited = img.Image.from(_originalImage!);
+
+    switch (filter) {
+      case "grayscale":
+        img.grayscale(edited);
+        break;
+      case "sepia":
+        img.sepia(edited);
+        break;
+      case "invert":
+        img.invert(edited);
+        break;
+      case "vivid":
+        img.adjustColor(edited, saturation: 1.5, brightness: 0.1);
+        break;
+      case "cool":
+        img.adjustColor(edited, blue: 30);
+        break;
+      case "warm":
+        img.adjustColor(edited, red: 30);
+        break;
+      default:
+        break;
+    }
+
+    // Applica regolazioni personalizzate
+    img.adjustColor(
+      edited,
+      brightness: _brightness,
+      contrast: _contrast,
+      saturation: _saturation,
+      red: _temperature > 0 ? (_temperature * 100).toInt() : 0,
+      blue: _temperature < 0 ? (-_temperature * 100).toInt() : 0,
+    );
+
+    final newBytes = Uint8List.fromList(img.encodeJpg(edited));
+    setState(() => _filteredBytes = newBytes);
   }
 
-  Future<void> _saveEditedImage() async {
-    final dir = await getTemporaryDirectory();
-    final path = "${dir.path}/edited_${DateTime.now().millisecondsSinceEpoch}.jpg";
-    final file = await File(path).writeAsBytes(_filteredBytes!);
+  Future<void> _saveImage() async {
+    if (_filteredBytes == null) return;
 
-    // Dialog: salva in nota o galleria
-    if (!mounted) return;
-    showDialog(
+    final choice = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Salva immagine"),
+        backgroundColor: AppColors.cardBackground,
+        title: const Text("Salvare modifiche?", style: TextStyle(color: Colors.white)),
         content: const Text(
-          "Vuoi salvare questa immagine nella nota o esportarla nella galleria del dispositivo?",
+          "Vuoi salvare la nota con il filtro applicato o creare una copia nella galleria?",
+          style: TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Annulla"),
+            onPressed: () => Navigator.pop(ctx, "note"),
+            child: const Text("Sovrascrivi Nota"),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.pop(context, {'type': 'image', 'path': file.path});
-            },
-            child: const Text("Nella Nota"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await GallerySaver.saveImage(file.path);
-              if (mounted) {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Immagine salvata in galleria")),
-                );
-              }
-            },
-            child: const Text("In Galleria"),
+            onPressed: () => Navigator.pop(ctx, "copy"),
+            child: const Text("Copia nella Galleria"),
           ),
         ],
       ),
     );
+
+    if (choice == null) return;
+
+    final dir = await getTemporaryDirectory();
+    final path = "${dir.path}/filtered_${DateTime.now().millisecondsSinceEpoch}.jpg";
+    final file = File(path);
+    await file.writeAsBytes(_filteredBytes!);
+
+    if (choice == "copy") {
+      await GallerySaver.saveImage(path);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Immagine salvata nella galleria!")),
+      );
+    } else {
+      Navigator.pop(context, file.path);
+    }
+  }
+
+  void _toggleViewMode() {
+    setState(() {
+      if (_viewMode == "filtered") {
+        _viewMode = "original";
+      } else if (_viewMode == "original") {
+        _viewMode = "compare";
+      } else {
+        _viewMode = "filtered";
+      }
+    });
+  }
+
+  void _toggleAdjustPanel() {
+    setState(() => _showAdjustPanel = !_showAdjustPanel);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_originalImage == null || _filteredBytes == null) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text("Visualizza immagine"),
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.primaryDark,
+        title: const Text("Visualizza Immagine"),
         actions: [
           IconButton(
             icon: const Icon(Icons.save),
-            onPressed: _filteredBytes != null ? _saveEditedImage : null,
+            onPressed: _saveImage,
           ),
           IconButton(
             icon: Icon(
-              _viewMode == "compare"
-                  ? Icons.compare
+              _viewMode == "filtered"
+                  ? Icons.auto_awesome
                   : _viewMode == "original"
-                      ? Icons.visibility_off
-                      : Icons.visibility,
+                      ? Icons.image
+                      : Icons.compare,
             ),
             tooltip: "Cambia vista",
-            onPressed: () {
-              setState(() {
-                if (_viewMode == "original") {
-                  _viewMode = "filtered";
-                } else if (_viewMode == "filtered") {
-                  _viewMode = "compare";
-                } else {
-                  _viewMode = "original";
-                }
-              });
-            },
+            onPressed: _toggleViewMode,
           ),
         ],
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primaryLight),
-            )
-          : Padding(
-              padding: const EdgeInsets.all(8),
-              child: _buildImageView(),
+      body: Stack(
+        alignment: Alignment.center,
+        children: [
+          Center(child: _buildImageView()),
+          if (_showSparkle)
+            const Positioned(
+              top: 100,
+              child: Icon(Icons.auto_awesome, size: 80, color: Colors.white70),
             ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: BoxDecoration(
-          color: AppColors.cardBackground,
-          border: const Border(
-            top: BorderSide(color: Colors.white12, width: 1),
-          ),
-        ),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _filterButton("original", "Originale"),
-              _filterButton("grayscale", "B/N"),
-              _filterButton("sepia", "Sepia"),
-              _filterButton("invert", "Inverti"),
-              _filterButton("contrast", "Contrasto"),
-              _filterButton("bright", "Luce+"),
-            ],
-          ),
-        ),
+        ],
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildFilterBar(),
+          if (_showAdjustPanel) _buildAdjustmentPanel(),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _toggleAdjustPanel,
+        backgroundColor: AppColors.primaryLight,
+        child: Icon(_showAdjustPanel ? Icons.tune : Icons.tune_outlined),
       ),
     );
   }
 
   Widget _buildImageView() {
-    if (_originalImage == null || _filteredBytes == null) {
-      return const Center(child: Text("Errore nel caricamento immagine"));
-    }
-
     if (_viewMode == "original") {
-      return InteractiveViewer(child: Image.file(File(widget.media['path'])));
+      return Image.file(File(widget.media['path']), fit: BoxFit.contain);
     } else if (_viewMode == "filtered") {
-      return InteractiveViewer(child: Image.memory(_filteredBytes!));
+      return Image.memory(_filteredBytes!, fit: BoxFit.contain);
+    } else {
+      return Stack(
+        children: [
+          Image.memory(_filteredBytes!, fit: BoxFit.contain),
+          Opacity(
+            opacity: 0.5,
+            child: Image.file(File(widget.media['path']), fit: BoxFit.contain),
+          ),
+        ],
+      );
     }
-
-    // Modalità confronto
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        double sliderPos = constraints.maxWidth / 2;
-        return StatefulBuilder(
-          builder: (context, setInnerState) {
-            return GestureDetector(
-              onPanUpdate: (details) {
-                setInnerState(() {
-                  sliderPos = (sliderPos + details.delta.dx)
-                      .clamp(0, constraints.maxWidth);
-                });
-              },
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Positioned.fill(
-                    child: Image.memory(_filteredBytes!, fit: BoxFit.contain),
-                  ),
-                  Positioned.fill(
-                    child: ClipRect(
-                      clipper: _ImageClipper(sliderPos),
-                      child: Image.file(
-                        File(widget.media['path']),
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: sliderPos - 1,
-                    top: 0,
-                    bottom: 0,
-                    child: Container(
-                      width: 3,
-                      color: AppColors.primaryLight.withOpacity(0.8),
-                    ),
-                  ),
-                  Positioned(
-                    left: sliderPos - 16,
-                    top: constraints.maxHeight / 2 - 16,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.primary,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primaryLight.withOpacity(0.8),
-                            blurRadius: 10,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.drag_indicator,
-                          size: 24, color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
   }
 
-  Widget _filterButton(String type, String label) {
-    final selected = _filter == type;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: ElevatedButton(
-        onPressed: () => _applyFilter(type),
-        style: ElevatedButton.styleFrom(
-          backgroundColor:
-              selected ? AppColors.primaryLight : AppColors.cardBackground,
-          foregroundColor: Colors.white,
-        ),
-        child: Text(label),
+  Widget _buildFilterBar() {
+    final filters = {
+      "none": "Nessuno",
+      "grayscale": "Grigio",
+      "sepia": "Seppia",
+      "invert": "Inverti",
+      "vivid": "Vivido",
+      "cool": "Freddo",
+      "warm": "Caldo",
+    };
+
+    return Container(
+      color: AppColors.cardBackground,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      height: 100,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: filters.entries.map((entry) {
+          final isActive = entry.key == _filter;
+          return GestureDetector(
+            onTap: () => _applyFilter(entry.key),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(horizontal: 10),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isActive ? AppColors.primaryLight : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.auto_awesome,
+                      color: isActive ? Colors.white : Colors.white54),
+                  const SizedBox(height: 6),
+                  Text(entry.value,
+                      style: TextStyle(
+                          color: isActive ? Colors.white : Colors.white70,
+                          fontSize: 12)),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
-}
 
-/// Clipper per mostrare metà immagine originale
-class _ImageClipper extends CustomClipper<Rect> {
-  final double width;
-  _ImageClipper(this.width);
+  Widget _buildAdjustmentPanel() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: AppColors.cardBackground,
+      child: Column(
+        children: [
+          _buildSlider("Luminosità", _brightness, -0.5, 0.5, (v) {
+            setState(() => _brightness = v);
+            _applyFilter(_filter);
+          }),
+          _buildSlider("Contrasto", _contrast, 0.5, 2.0, (v) {
+            setState(() => _contrast = v);
+            _applyFilter(_filter);
+          }),
+          _buildSlider("Saturazione", _saturation, 0.0, 2.0, (v) {
+            setState(() => _saturation = v);
+            _applyFilter(_filter);
+          }),
+          _buildSlider("Temperatura", _temperature, -1.0, 1.0, (v) {
+            setState(() => _temperature = v);
+            _applyFilter(_filter);
+          }),
+        ],
+      ),
+    );
+  }
 
-  @override
-  Rect getClip(Size size) => Rect.fromLTWH(0, 0, width, size.height);
-
-  @override
-  bool shouldReclip(covariant _ImageClipper oldClipper) =>
-      oldClipper.width != width;
+  Widget _buildSlider(
+      String label, double value, double min, double max, Function(double) onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        Slider(
+          value: value,
+          min: min,
+          max: max,
+          divisions: 20,
+          label: value.toStringAsFixed(2),
+          onChanged: (v) => onChanged(v),
+          activeColor: AppColors.primaryLight,
+          thumbColor: AppColors.primary,
+        ),
+      ],
+    );
+  }
 }
