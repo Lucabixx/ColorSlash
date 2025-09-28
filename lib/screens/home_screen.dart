@@ -3,37 +3,31 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+
 import '../services/auth_service.dart';
-import 'info_screen.dart';
 import 'note_editor_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool? rememberChoice;
-  String? preferredType;
-  bool _isSyncing = false;
   List<Map<String, dynamic>> _notes = [];
   List<Map<String, dynamic>> _filteredNotes = [];
-  final TextEditingController _searchController = TextEditingController();
-  String _filterType = "all";
+  String _searchQuery = '';
+  String _sortKey = 'date';
+  bool _ascending = false;
+  String _filterType = 'all';
+  Color? _filterColor;
+  bool _syncing = false;
 
   @override
   void initState() {
     super.initState();
     _loadNotes();
-    _autoSync();
-    _searchController.addListener(_filterNotes);
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   Future<File> _getNotesFile() async {
@@ -45,15 +39,11 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final file = await _getNotesFile();
       if (await file.exists()) {
-        final decoded = jsonDecode(await file.readAsString());
+        final data = jsonDecode(await file.readAsString());
+        final loaded = List<Map<String, dynamic>>.from(data);
         setState(() {
-          _notes = List<Map<String, dynamic>>.from(decoded);
-          _filterNotes();
-        });
-      } else {
-        setState(() {
-          _notes = [];
-          _filteredNotes = [];
+          _notes = loaded;
+          _applyFilters();
         });
       }
     } catch (e) {
@@ -61,133 +51,59 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _filterNotes() {
-    final query = _searchController.text.toLowerCase();
-    setState(() {
-      _filteredNotes = _notes.where((note) {
-        final title = (note['title'] ?? '').toLowerCase();
-        final content = (note['content'] ?? '').toLowerCase();
-        final type = (note['type'] ?? 'note');
-        final matchesQuery =
-            title.contains(query) || content.contains(query);
-        final matchesType = _filterType == "all" || _filterType == type;
-        return matchesQuery && matchesType;
-      }).toList();
-    });
-  }
-
   Future<void> _saveNotes() async {
     final file = await _getNotesFile();
     await file.writeAsString(jsonEncode(_notes));
   }
 
-  Future<void> _autoSync() async {
-    final auth = context.read<AuthService>();
-    setState(() => _isSyncing = true);
-    try {
-      await auth.syncWithCloud(context);
-      await _loadNotes();
-    } catch (e) {
-      debugPrint("Errore sync automatica: $e");
-    } finally {
-      setState(() => _isSyncing = false);
-    }
-  }
+  void _applyFilters() {
+    List<Map<String, dynamic>> result = List.from(_notes);
 
-  void _onAddPressed() {
-    if (rememberChoice == true && preferredType != null) {
-      _openEditor(preferredType!);
-      return;
+    // Filtra per tipo
+    if (_filterType != 'all') {
+      result = result.where((n) => n['type'] == _filterType).toList();
     }
 
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        bool remember = false;
-        String sel = "note";
-        return AlertDialog(
-          title: const Text("Cosa vuoi creare?"),
-          content: StatefulBuilder(builder: (c, setState) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                RadioListTile<String>(
-                  title: const Text("Nota"),
-                  value: "note",
-                  groupValue: sel,
-                  onChanged: (v) => setState(() => sel = v ?? "note"),
-                ),
-                RadioListTile<String>(
-                  title: const Text("Lista"),
-                  value: "list",
-                  groupValue: sel,
-                  onChanged: (v) => setState(() => sel = v ?? "list"),
-                ),
-                CheckboxListTile(
-                  value: remember,
-                  onChanged: (v) => setState(() => remember = v ?? false),
-                  title: const Text("Ricorda la mia scelta"),
-                ),
-              ],
-            );
-          }),
-          actions: [
-            TextButton(
-              onPressed: () {
-                if (remember) {
-                  setState(() {
-                    rememberChoice = true;
-                    preferredType = sel;
-                  });
-                }
-                Navigator.pop(ctx);
-                _openEditor(sel);
-              },
-              child: const Text("OK"),
-            )
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _chooseColor(Map<String, dynamic> note) async {
-    final color = await showDialog<Color>(
-      context: context,
-      builder: (ctx) {
-        Color selected = Color(note['color'] ?? Colors.white.value);
-        return AlertDialog(
-          title: const Text("Scegli un colore"),
-          content: SingleChildScrollView(
-            child: BlockPicker(
-              pickerColor: selected,
-              onColorChanged: (c) => selected = c,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, selected),
-              child: const Text("OK"),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (color != null) {
-      setState(() {
-        note['color'] = color.value;
-      });
-      await _saveNotes();
+    // Filtra per colore
+    if (_filterColor != null) {
+      result = result.where((n) => n['color'] == _filterColor!.value).toList();
     }
+
+    // Ricerca
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      result = result.where((n) {
+        final title = (n['title'] ?? '').toString().toLowerCase();
+        final content = (n['content'] ?? '').toString().toLowerCase();
+        return title.contains(q) || content.contains(q);
+      }).toList();
+    }
+
+    // Ordinamento
+    result.sort((a, b) {
+      dynamic vA = a[_sortKey];
+      dynamic vB = b[_sortKey];
+      if (_sortKey == 'date') {
+        vA = DateTime.tryParse(vA ?? '') ?? DateTime(0);
+        vB = DateTime.tryParse(vB ?? '') ?? DateTime(0);
+      }
+      final cmp = vA.toString().compareTo(vB.toString());
+      return _ascending ? cmp : -cmp;
+    });
+
+    setState(() => _filteredNotes = result);
   }
 
-  void _openEditor(String type) async {
+  Future<void> _addOrEditNote([Map<String, dynamic>? existing]) async {
+    final id = existing?['id'] ?? DateTime.now().millisecondsSinceEpoch.toString();
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            NoteEditorScreen(noteId: UniqueKey().toString(), type: type),
+        builder: (_) => NoteEditorScreen(
+          noteId: id,
+          type: existing?['type'] ?? 'note',
+          existing: existing,
+        ),
       ),
     );
     if (result == true) {
@@ -196,139 +112,198 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _deleteNote(String id) async {
-    setState(() {
-      _notes.removeWhere((n) => n['id'] == id);
-      _filteredNotes.removeWhere((n) => n['id'] == id);
-    });
+    setState(() => _notes.removeWhere((n) => n['id'] == id));
     await _saveNotes();
+    _applyFilters();
+  }
+
+  Future<void> _changeColor(Map<String, dynamic> note) async {
+    final newColor = await showDialog<Color>(
+      context: context,
+      builder: (ctx) {
+        Color selected = Color(note['color'] ?? Colors.white.value);
+        return AlertDialog(
+          title: const Text('Cambia colore'),
+          content: Wrap(
+            spacing: 8,
+            children: [
+              for (final c in [Colors.white, Colors.red, Colors.green, Colors.blue, Colors.yellow, Colors.purple])
+                GestureDetector(
+                  onTap: () => selected = c,
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: c,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: selected == c ? Colors.black : Colors.grey),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, selected), child: const Text('OK')),
+          ],
+        );
+      },
+    );
+    if (newColor != null) {
+      note['color'] = newColor.value;
+      await _saveNotes();
+      _applyFilters();
+    }
+  }
+
+  Future<void> _syncWithCloud() async {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    try {
+      setState(() => _syncing = true);
+      await auth.syncWithCloud(context);
+      await _loadNotes();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sincronizzazione completata ✅')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Errore sincronizzazione: $e')),
+      );
+    } finally {
+      setState(() => _syncing = false);
+    }
+  }
+
+  void _resetFilters() {
+    setState(() {
+      _filterType = 'all';
+      _filterColor = null;
+      _searchQuery = '';
+      _sortKey = 'date';
+      _ascending = false;
+    });
+    _applyFilters();
+  }
+
+  Widget _highlightText(String text, String query) {
+    if (query.isEmpty) return Text(text);
+    final lowerText = text.toLowerCase();
+    final lowerQuery = query.toLowerCase();
+    final matches = <TextSpan>[];
+    int start = 0;
+    while (true) {
+      final index = lowerText.indexOf(lowerQuery, start);
+      if (index == -1) {
+        matches.add(TextSpan(text: text.substring(start)));
+        break;
+      }
+      if (index > start) {
+        matches.add(TextSpan(text: text.substring(start, index)));
+      }
+      matches.add(TextSpan(
+        text: text.substring(index, index + query.length),
+        style: const TextStyle(backgroundColor: Colors.yellow, fontWeight: FontWeight.bold),
+      ));
+      start = index + query.length;
+    }
+    return RichText(text: TextSpan(style: const TextStyle(color: Colors.white), children: matches));
   }
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.read<AuthService>();
+    final noteCount = _filteredNotes.where((n) => n['type'] == 'note').length;
+    final listCount = _filteredNotes.where((n) => n['type'] == 'list').length;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("ColorSlash - BETA1"),
+        title: const Text('ColorSlash - BETA1'),
         actions: [
-          if (_isSyncing)
+          if (_syncing)
             const Padding(
-              padding: EdgeInsets.only(right: 16),
-              child: Center(
-                child: SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2)),
-              ),
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
             ),
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const InfoScreen()),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.cloud_sync),
-            tooltip: "Sincronizza manualmente",
-            onPressed: () async {
-              setState(() => _isSyncing = true);
-              await auth.syncWithCloud(context);
-              await _loadNotes();
-              setState(() => _isSyncing = false);
+          IconButton(icon: const Icon(Icons.cloud_sync), onPressed: _syncing ? null : _syncWithCloud),
+          IconButton(icon: const Icon(Icons.filter_alt_off), onPressed: _resetFilters),
+          PopupMenuButton<String>(
+            onSelected: (val) {
+              if (val == 'note' || val == 'list' || val == 'all') {
+                _filterType = val;
+              } else if (val == 'asc' || val == 'desc') {
+                _ascending = val == 'asc';
+              } else {
+                _sortKey = val;
+              }
+              _applyFilters();
             },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'note', child: Text('Solo Note')),
+              const PopupMenuItem(value: 'list', child: Text('Solo Liste')),
+              const PopupMenuItem(value: 'all', child: Text('Tutti')),
+              const PopupMenuDivider(),
+              const PopupMenuItem(value: 'title', child: Text('Ordina per Titolo')),
+              const PopupMenuItem(value: 'date', child: Text('Ordina per Data')),
+              const PopupMenuItem(value: 'color', child: Text('Ordina per Colore')),
+              const PopupMenuDivider(),
+              const PopupMenuItem(value: 'asc', child: Text('Crescente')),
+              const PopupMenuItem(value: 'desc', child: Text('Decrescente')),
+            ],
           ),
         ],
       ),
       body: Column(
         children: [
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4),
+            padding: const EdgeInsets.all(12),
+            child: TextField(
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                hintText: 'Cerca...',
+              ),
+              onChanged: (v) {
+                _searchQuery = v;
+                _applyFilters();
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: Row(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: "Cerca per titolo o contenuto...",
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                DropdownButton<String>(
-                  value: _filterType,
-                  items: const [
-                    DropdownMenuItem(value: "all", child: Text("Tutte")),
-                    DropdownMenuItem(value: "note", child: Text("Note")),
-                    DropdownMenuItem(value: "list", child: Text("Liste")),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _filterType = value;
-                        _filterNotes();
-                      });
-                    }
-                  },
-                ),
+                Text('Note: $noteCount', style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(width: 16),
+                Text('Liste: $listCount', style: const TextStyle(fontWeight: FontWeight.bold)),
               ],
             ),
           ),
           Expanded(
             child: _filteredNotes.isEmpty
-                ? const Center(
-                    child: Text(
-                      "Nessuna nota trovata.",
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                  )
+                ? const Center(child: Text('Nessuna nota trovata'))
                 : ListView.builder(
-                    padding: const EdgeInsets.all(8),
                     itemCount: _filteredNotes.length,
-                    itemBuilder: (context, index) {
-                      final note = _filteredNotes[index];
-                      final color = Color(note['color'] ?? Colors.white.value);
+                    itemBuilder: (context, i) {
+                      final n = _filteredNotes[i];
+                      final color = Color(n['color'] ?? Colors.white.value);
+                      final title = n['title'] ?? '';
+                      final content = n['content'] ?? '';
                       return Dismissible(
-                        key: ValueKey(note['id']),
+                        key: Key(n['id']),
                         direction: DismissDirection.endToStart,
-                        onDismissed: (_) => _deleteNote(note['id']),
+                        onDismissed: (_) => _deleteNote(n['id']),
                         background: Container(
-                          color: Colors.redAccent,
+                          color: Colors.red,
                           alignment: Alignment.centerRight,
                           padding: const EdgeInsets.only(right: 20),
                           child: const Icon(Icons.delete, color: Colors.white),
                         ),
-                        child: Card(
-                          color: color.withOpacity(0.9),
-                          child: ListTile(
-                            title: Text(note['title'] ?? 'Senza titolo'),
-                            subtitle: Text(
-                              note['content'] ?? '',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            onTap: () async {
-                              final result = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => NoteEditorScreen(
-                                    noteId: note['id'],
-                                    type: note['type'] ?? 'note',
-                                  ),
-                                ),
-                              );
-                              if (result == true) await _loadNotes();
-                            },
-                            trailing: IconButton(
-                              icon: const Icon(Icons.color_lens),
-                              onPressed: () => _chooseColor(note),
-                            ),
+                        child: ListTile(
+                          onTap: () => _addOrEditNote(n),
+                          onLongPress: () => _changeColor(n),
+                          leading: Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                          title: _highlightText(title, _searchQuery),
+                          subtitle: _highlightText(content, _searchQuery),
+                          trailing: Icon(
+                            n['type'] == 'note' ? Icons.sticky_note_2 : Icons.list_alt,
+                            color: Colors.white70,
                           ),
                         ),
                       );
@@ -337,60 +312,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _onAddPressed,
-        backgroundColor: Colors.blueAccent,
-        child: const Icon(Icons.add, size: 36),
+      floatingActionButton: PopupMenuButton<String>(
+        icon: const Icon(Icons.add),
+        onSelected: (v) => _addOrEditNote({'type': v}),
+        itemBuilder: (_) => [
+          const PopupMenuItem(value: 'note', child: Text('Nuova Nota')),
+          const PopupMenuItem(value: 'list', child: Text('Nuova Lista')),
+        ],
       ),
-      floatingActionButtonLocation:
-          FloatingActionButtonLocation.centerDocked,
-    );
-  }
-}
-
-// 🔹 Import del selettore colori
-class BlockPicker extends StatelessWidget {
-  final Color pickerColor;
-  final ValueChanged<Color> onColorChanged;
-  const BlockPicker(
-      {super.key, required this.pickerColor, required this.onColorChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = [
-      Colors.white,
-      Colors.red,
-      Colors.green,
-      Colors.blue,
-      Colors.yellow,
-      Colors.purple,
-      Colors.orange,
-      Colors.cyan,
-      Colors.pink,
-      Colors.teal,
-      Colors.grey,
-    ];
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: colors.map((color) {
-        return GestureDetector(
-          onTap: () => onColorChanged(color),
-          child: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: color,
-              border: Border.all(
-                color: pickerColor == color ? Colors.black : Colors.grey,
-                width: 2,
-              ),
-              borderRadius: BorderRadius.circular(6),
-            ),
-          ),
-        );
-      }).toList(),
     );
   }
 }
