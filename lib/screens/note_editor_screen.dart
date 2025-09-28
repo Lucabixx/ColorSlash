@@ -17,16 +17,18 @@ class NoteEditorScreen extends StatefulWidget {
 }
 
 class _NoteEditorScreenState extends State<NoteEditorScreen> {
-  final _titleController = TextEditingController();
-  final _contentController = TextEditingController();
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _contentController = TextEditingController();
   Color _selectedColor = Colors.white;
 
   @override
   void initState() {
     super.initState();
     final noteService = Provider.of<NoteService>(context, listen: false);
-    final existing =
-        noteService.notes.firstWhere((n) => n['id'] == widget.noteId, orElse: () => {});
+    final existing = noteService.notes.firstWhere(
+      (n) => n['id'] == widget.noteId,
+      orElse: () => {},
+    );
     if (existing.isNotEmpty) {
       _titleController.text = existing['title'] ?? '';
       _contentController.text = existing['content'] ?? '';
@@ -41,8 +43,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final note = {
       'id': widget.noteId,
       'type': widget.type,
-      'title': _titleController.text,
-      'content': _contentController.text,
+      'title': _titleController.text.trim(),
+      'content': _contentController.text.trim(),
       'color': _selectedColor.value,
       'updatedAt': now,
     };
@@ -55,7 +57,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.type == 'note' ? 'Modifica Nota' : 'Modifica Lista'),
+        title: Text(widget.type == 'note' ? "Modifica Nota" : "Modifica Lista"),
         actions: [
           IconButton(icon: const Icon(Icons.save), onPressed: _saveNote),
         ],
@@ -66,13 +68,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           children: [
             TextField(
               controller: _titleController,
-              decoration: const InputDecoration(labelText: 'Titolo'),
+              decoration: const InputDecoration(labelText: "Titolo"),
             ),
             const SizedBox(height: 12),
             Expanded(
               child: TextField(
                 controller: _contentController,
-                decoration: const InputDecoration(labelText: 'Contenuto'),
+                decoration: const InputDecoration(labelText: "Contenuto"),
                 maxLines: null,
                 expands: true,
               ),
@@ -98,9 +100,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                         color: c,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: _selectedColor == c ? Colors.black : Colors.grey,
-                          width: 2,
-                        ),
+                            color: _selectedColor == c ? Colors.black : Colors.grey,
+                            width: 2),
                       ),
                     ),
                   ),
