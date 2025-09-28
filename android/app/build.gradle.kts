@@ -1,3 +1,5 @@
+import com.google.gms.googleservices.GoogleServicesPlugin
+import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsPlugin
 import java.util.Properties
 import java.io.FileInputStream
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -6,8 +8,8 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services") version "4.4.3" // Google Services
-    id("com.google.firebase.crashlytics") version "3.0.6" // Crashlytics
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 val keystorePropertiesFile = rootProject.file("key.properties")
@@ -94,6 +96,6 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
 }
-apply(plugin = "com.google.gms.google-services")
+
 
 
