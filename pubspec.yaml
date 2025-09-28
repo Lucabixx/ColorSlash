@@ -1,4 +1,4 @@
-name: ColorSlash INTERNAL TEST 012
+name: ColorSlash
 description: Un'app di note multimediali - Versione di Test BETA 1
 publish_to: "none"
 version: 0.1.2+1
@@ -53,6 +53,7 @@ flutter_launcher_icons:
   ios: true
   
 image_path: "assets/icon.png"
+
 
 
 
