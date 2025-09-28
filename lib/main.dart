@@ -1,10 +1,8 @@
-// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-
-import 'services/auth_service.dart';
-import 'screens/splash_screen.dart';
+import 'package:colorslash/screens/splash_screen.dart';
+import 'package:colorslash/services/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,7 +12,6 @@ Future<void> main() async {
 
 class ColorSlashApp extends StatelessWidget {
   const ColorSlashApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<AuthService>(
@@ -24,10 +21,10 @@ class ColorSlashApp extends StatelessWidget {
         title: 'ColorSlash',
         theme: ThemeData(
           brightness: Brightness.dark,
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
+          primarySwatch: Colors.deepPurple,
           scaffoldBackgroundColor: Colors.black,
           appBarTheme: const AppBarTheme(
-            backgroundColor: Colors.blueAccent,
+            backgroundColor: Colors.deepPurple,
             foregroundColor: Colors.white,
             centerTitle: true,
           ),
