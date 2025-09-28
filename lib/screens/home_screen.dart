@@ -96,16 +96,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _addOrEditNote([Map<String, dynamic>? existing]) async {
     final id = existing?['id'] ?? DateTime.now().millisecondsSinceEpoch.toString();
+
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => NoteEditorScreen(
           noteId: id,
           type: existing?['type'] ?? 'note',
-          existing: existing,
         ),
       ),
     );
+
     if (result == true) {
       await _loadNotes();
     }
@@ -127,7 +128,14 @@ class _HomeScreenState extends State<HomeScreen> {
           content: Wrap(
             spacing: 8,
             children: [
-              for (final c in [Colors.white, Colors.red, Colors.green, Colors.blue, Colors.yellow, Colors.purple])
+              for (final c in [
+                Colors.white,
+                Colors.red,
+                Colors.green,
+                Colors.blue,
+                Colors.yellow,
+                Colors.purple
+              ])
                 GestureDetector(
                   onTap: () => selected = c,
                   child: Container(
@@ -136,18 +144,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     decoration: BoxDecoration(
                       color: c,
                       shape: BoxShape.circle,
-                      border: Border.all(color: selected == c ? Colors.black : Colors.grey),
+                      border: Border.all(
+                        color: selected == c ? Colors.black : Colors.grey,
+                      ),
                     ),
                   ),
                 ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, selected), child: const Text('OK')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, selected),
+              child: const Text('OK'),
+            ),
           ],
         );
       },
     );
+
     if (newColor != null) {
       note['color'] = newColor.value;
       await _saveNotes();
@@ -186,10 +200,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _highlightText(String text, String query) {
     if (query.isEmpty) return Text(text);
+
     final lowerText = text.toLowerCase();
     final lowerQuery = query.toLowerCase();
     final matches = <TextSpan>[];
     int start = 0;
+
     while (true) {
       final index = lowerText.indexOf(lowerQuery, start);
       if (index == -1) {
@@ -201,11 +217,20 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       matches.add(TextSpan(
         text: text.substring(index, index + query.length),
-        style: const TextStyle(backgroundColor: Colors.yellow, fontWeight: FontWeight.bold),
+        style: const TextStyle(
+          backgroundColor: Colors.yellow,
+          fontWeight: FontWeight.bold,
+        ),
       ));
       start = index + query.length;
     }
-    return RichText(text: TextSpan(style: const TextStyle(color: Colors.white), children: matches));
+
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(color: Colors.white),
+        children: matches,
+      ),
+    );
   }
 
   @override
@@ -220,10 +245,22 @@ class _HomeScreenState extends State<HomeScreen> {
           if (_syncing)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
             ),
-          IconButton(icon: const Icon(Icons.cloud_sync), onPressed: _syncing ? null : _syncWithCloud),
-          IconButton(icon: const Icon(Icons.filter_alt_off), onPressed: _resetFilters),
+          IconButton(
+            icon: const Icon(Icons.cloud_sync),
+            onPressed: _syncing ? null : _syncWithCloud,
+          ),
+          IconButton(
+            icon: const Icon(Icons.filter_alt_off),
+            onPressed: _resetFilters,
+          ),
           PopupMenuButton<String>(
             onSelected: (val) {
               if (val == 'note' || val == 'list' || val == 'all') {
@@ -235,17 +272,17 @@ class _HomeScreenState extends State<HomeScreen> {
               }
               _applyFilters();
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'note', child: Text('Solo Note')),
-              const PopupMenuItem(value: 'list', child: Text('Solo Liste')),
-              const PopupMenuItem(value: 'all', child: Text('Tutti')),
-              const PopupMenuDivider(),
-              const PopupMenuItem(value: 'title', child: Text('Ordina per Titolo')),
-              const PopupMenuItem(value: 'date', child: Text('Ordina per Data')),
-              const PopupMenuItem(value: 'color', child: Text('Ordina per Colore')),
-              const PopupMenuDivider(),
-              const PopupMenuItem(value: 'asc', child: Text('Crescente')),
-              const PopupMenuItem(value: 'desc', child: Text('Decrescente')),
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'note', child: Text('Solo Note')),
+              PopupMenuItem(value: 'list', child: Text('Solo Liste')),
+              PopupMenuItem(value: 'all', child: Text('Tutti')),
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'title', child: Text('Ordina per Titolo')),
+              PopupMenuItem(value: 'date', child: Text('Ordina per Data')),
+              PopupMenuItem(value: 'color', child: Text('Ordina per Colore')),
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'asc', child: Text('Crescente')),
+              PopupMenuItem(value: 'desc', child: Text('Decrescente')),
             ],
           ),
         ],
@@ -269,9 +306,11 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: Row(
               children: [
-                Text('Note: $noteCount', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text('Note: $noteCount',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(width: 16),
-                Text('Liste: $listCount', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text('Liste: $listCount',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
               ],
             ),
           ),
@@ -285,6 +324,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       final color = Color(n['color'] ?? Colors.white.value);
                       final title = n['title'] ?? '';
                       final content = n['content'] ?? '';
+
                       return Dismissible(
                         key: Key(n['id']),
                         direction: DismissDirection.endToStart,
@@ -298,11 +338,20 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: ListTile(
                           onTap: () => _addOrEditNote(n),
                           onLongPress: () => _changeColor(n),
-                          leading: Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                          leading: Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
                           title: _highlightText(title, _searchQuery),
                           subtitle: _highlightText(content, _searchQuery),
                           trailing: Icon(
-                            n['type'] == 'note' ? Icons.sticky_note_2 : Icons.list_alt,
+                            n['type'] == 'note'
+                                ? Icons.sticky_note_2
+                                : Icons.list_alt,
                             color: Colors.white70,
                           ),
                         ),
@@ -315,9 +364,9 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: PopupMenuButton<String>(
         icon: const Icon(Icons.add),
         onSelected: (v) => _addOrEditNote({'type': v}),
-        itemBuilder: (_) => [
-          const PopupMenuItem(value: 'note', child: Text('Nuova Nota')),
-          const PopupMenuItem(value: 'list', child: Text('Nuova Lista')),
+        itemBuilder: (_) => const [
+          PopupMenuItem(value: 'note', child: Text('Nuova Nota')),
+          PopupMenuItem(value: 'list', child: Text('Nuova Lista')),
         ],
       ),
     );
