@@ -5,10 +5,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:colorslash/utils/app_colors.dart';
+import 'package:colorslash/widgets/media_viewer.dart';
+import 'package:colorslash/widgets/sketch_pad.dart';
 
 class NoteEditorScreen extends StatefulWidget {
   final String noteId;
   final String type;
+
   const NoteEditorScreen({
     super.key,
     required this.noteId,
@@ -207,73 +210,102 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               maxLines: null,
             ),
             const SizedBox(height: 20),
+            
+            /// 🖼️ SEZIONE MEDIA CON TAP PER VISUALIZZAZIONE
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: _media.map((m) {
+                Widget preview;
                 if (m['type'] == 'image') {
-                  return Image.file(File(m['path']), width: 120, height: 120, fit: BoxFit.cover);
+                  preview = Image.file(File(m['path']), width: 100, height: 100, fit: BoxFit.cover);
                 } else if (m['type'] == 'video') {
-                  return Container(
-                    width: 120,
-                    height: 120,
-                    color: Colors.black12,
-                    child: const Icon(Icons.play_circle, color: Colors.blueAccent, size: 50),
+                  preview = Container(
+                    width: 100,
+                    height: 100,
+                    color: Colors.black26,
+                    child: const Icon(Icons.videocam, color: Colors.white),
                   );
                 } else if (m['type'] == 'audio') {
-                  return const Icon(Icons.audiotrack, color: Colors.deepPurple, size: 40);
+                  preview = Container(
+                    width: 100,
+                    height: 100,
+                    color: Colors.black26,
+                    child: const Icon(Icons.audiotrack, color: Colors.white),
+                  );
+                } else {
+                  preview = Container(width: 100, height: 100, color: Colors.grey);
                 }
-                return const SizedBox();
+
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MediaViewer(
+                          media: _media,
+                          initialIndex: _media.indexOf(m),
+                        ),
+                      ),
+                    );
+                  },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: preview,
+                  ),
+                );
               }).toList(),
             ),
           ],
         ),
       ),
+      
+      /// 🎙️ FLOATING ACTION BUTTONS
       floatingActionButton: Wrap(
-  spacing: 10,
-  direction: Axis.horizontal,
-  children: [
-    FloatingActionButton(
-      heroTag: 'photo',
-      onPressed: _pickImage,
-      backgroundColor: AppColors.primary,
-      child: const Icon(Icons.photo),
-    ),
-    FloatingActionButton(
-      heroTag: 'video',
-      onPressed: _pickVideo,
-      backgroundColor: AppColors.primaryDark,
-      child: const Icon(Icons.videocam),
-    ),
-    FloatingActionButton(
-      heroTag: 'mic',
-      onPressed: _toggleRecording,
-      backgroundColor: _isRecording ? Colors.redAccent : AppColors.accent,
-      child: Icon(_isRecording ? Icons.stop : Icons.mic),
-    ),
-    FloatingActionButton(
-      heroTag: 'draw',
-      onPressed: () async {
-        final img = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => SketchPad(
-              onSave: (data) async {
-                final dir = await getTemporaryDirectory();
-                final filePath = "${dir.path}/${DateTime.now().millisecondsSinceEpoch}.png";
-                final file = File(filePath);
-                await file.writeAsBytes(data);
-                setState(() => _media.add({'type': 'image', 'path': file.path}));
-              },
-            ),
+        spacing: 10,
+        direction: Axis.horizontal,
+        children: [
+          FloatingActionButton(
+            heroTag: 'photo',
+            onPressed: _pickImage,
+            backgroundColor: AppColors.primary,
+            child: const Icon(Icons.photo),
           ),
-        );
-      },
-      backgroundColor: Colors.blueAccent,
-      child: const Icon(Icons.brush),
-    ),
-  ],
-),  
+          FloatingActionButton(
+            heroTag: 'video',
+            onPressed: _pickVideo,
+            backgroundColor: AppColors.primaryDark,
+            child: const Icon(Icons.videocam),
+          ),
+          FloatingActionButton(
+            heroTag: 'mic',
+            onPressed: _toggleRecording,
+            backgroundColor: _isRecording ? Colors.redAccent : AppColors.accent,
+            child: Icon(_isRecording ? Icons.stop : Icons.mic),
+          ),
+          FloatingActionButton(
+            heroTag: 'draw',
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SketchPad(
+                    onSave: (data) async {
+                      final dir = await getTemporaryDirectory();
+                      final filePath = "${dir.path}/${DateTime.now().millisecondsSinceEpoch}.png";
+                      final file = File(filePath);
+                      await file.writeAsBytes(data);
+                      setState(() => _media.add({'type': 'image', 'path': file.path}));
+                    },
+                  ),
+                ),
+              );
+            },
+            backgroundColor: Colors.blueAccent,
+            child: const Icon(Icons.brush),
+          ),
+        ],
+      ),
     );
   }
 }
