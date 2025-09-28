@@ -20,6 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _notes = [];
   List<Map<String, dynamic>> _filteredNotes = [];
   final TextEditingController _searchController = TextEditingController();
+  String _filterType = "all"; // "all", "note", "list"
 
   @override
   void initState() {
@@ -48,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         setState(() {
           _notes = List<Map<String, dynamic>>.from(decoded);
-          _filteredNotes = _notes;
+          _filterNotes();
         });
       } else {
         setState(() {
@@ -61,14 +62,22 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// 🔹 Filtra note per testo cercato
+  /// 🔹 Filtra note per testo cercato e tipo
   void _filterNotes() {
     final query = _searchController.text.toLowerCase();
+
     setState(() {
       _filteredNotes = _notes.where((note) {
         final title = (note['title'] ?? '').toLowerCase();
         final content = (note['content'] ?? '').toLowerCase();
-        return title.contains(query) || content.contains(query);
+        final type = (note['type'] ?? 'note');
+
+        final matchesQuery =
+            title.contains(query) || content.contains(query);
+
+        final matchesType = _filterType == "all" || _filterType == type;
+
+        return matchesQuery && matchesType;
       }).toList();
     });
   }
@@ -149,7 +158,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => NoteEditorScreen(noteId: UniqueKey().toString()),
+        builder: (_) =>
+            NoteEditorScreen(noteId: UniqueKey().toString(), type: type),
       ),
     );
 
@@ -238,18 +248,45 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 // 🔍 Campo di ricerca
                 Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: "Cerca per titolo o contenuto...",
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: "Cerca per titolo o contenuto...",
+                            prefixIcon: const Icon(Icons.search),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                        ),
                       ),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
+                      const SizedBox(width: 8),
+                      DropdownButton<String>(
+                        value: _filterType,
+                        items: const [
+                          DropdownMenuItem(
+                              value: "all", child: Text("Tutte")),
+                          DropdownMenuItem(
+                              value: "note", child: Text("Note")),
+                          DropdownMenuItem(
+                              value: "list", child: Text("Liste")),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _filterType = value;
+                              _filterNotes();
+                            });
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ),
 
@@ -269,7 +306,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           itemBuilder: (context, index) {
                             final note = _filteredNotes[index];
                             return Card(
-                              color: Colors.deepPurple.shade100,
+                              color: note['type'] == 'list'
+                                  ? Colors.green.shade100
+                                  : Colors.deepPurple.shade100,
                               child: ListTile(
                                 title: Text(note['title'] ?? 'Senza titolo'),
                                 subtitle: Text(
@@ -283,6 +322,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     MaterialPageRoute(
                                       builder: (_) => NoteEditorScreen(
                                         noteId: note['id'],
+                                        type: note['type'] ?? 'note',
                                       ),
                                     ),
                                   ).then((value) async {
