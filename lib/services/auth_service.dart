@@ -1,10 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   User? get currentUser => _auth.currentUser;
 
@@ -57,6 +59,33 @@ class AuthService extends ChangeNotifier {
     } catch (e) {
       debugPrint("Errore Google Sign-In: $e");
       return null;
+    }
+  }
+
+  // 🔹 FUNZIONE DI SINCRONIZZAZIONE CLOUD
+  Future<void> syncWithCloud(BuildContext context) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Devi essere loggato per sincronizzare")),
+        );
+        return;
+      }
+
+      // Esempio base: salva la data di ultima sincronizzazione
+      await _firestore.collection('users').doc(user.uid).set({
+        'lastSync': DateTime.now(),
+      }, SetOptions(merge: true));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Sincronizzazione completata ✅")),
+      );
+    } catch (e) {
+      debugPrint("Errore sync cloud: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Errore sincronizzazione: $e")),
+      );
     }
   }
 
