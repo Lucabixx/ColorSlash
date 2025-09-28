@@ -1,3 +1,4 @@
+// lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:colorslash/services/auth_service.dart';
@@ -35,13 +36,18 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (user != null) {
+      // login riuscito
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
     } else {
+      // se user è null può essere credenziali sbagliate oppure mail non verificata.
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Credenziali non valide")),
+        const SnackBar(
+          content: Text(
+              "Login non riuscito. Se non hai verificato l'email, controlla la tua posta (ti è stata inviata una mail di verifica)."),
+        ),
       );
     }
   }
@@ -68,6 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // layout semplice e leggibile
     return Scaffold(
       backgroundColor: Colors.deepPurple.shade50,
       body: Center(
@@ -114,6 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.deepPurple,
                     minimumSize: const Size(double.infinity, 50),
+                    shape: const StadiumBorder(),
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
@@ -131,6 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   label: const Text("Accedi con Google"),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 50),
+                    shape: const StadiumBorder(),
                   ),
                 ),
                 const SizedBox(height: 20),
