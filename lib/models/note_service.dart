@@ -1,115 +1,113 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import '../models/note_model.dart';
+import 'auth_service.dart';
 
-/// 🔹 Gestisce note locali e sincronizzazione cloud
 class NoteService extends ChangeNotifier {
   final List<NoteModel> _notes = [];
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
   List<NoteModel> get notes => List.unmodifiable(_notes);
 
-  /// 🔸 Carica note dal device (SharedPreferences)
-  Future<void> loadNotes() async {
+  final _firestore = FirebaseFirestore.instance;
+
+  /// Carica le note da file locale
+  Future<void> loadLocalNotes() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString('notes');
-      if (raw != null) {
-        final decoded = json.decode(raw) as List;
-        _notes.clear();
-        _notes.addAll(decoded.map((n) => NoteModel.fromJson(n)));
-      }
+      final file = await _getNotesFile();
+      if (!await file.exists()) return;
+      final data = jsonDecode(await file.readAsString());
+      _notes.clear();
+      _notes.addAll((data as List).map((e) => NoteModel.fromJson(e)));
       notifyListeners();
     } catch (e) {
-      debugPrint("⚠️ Errore caricando note: $e");
+      debugPrint("Errore caricamento locale: $e");
     }
   }
 
-  /// 🔸 Salva note in locale
-  Future<void> _saveLocal() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = json.encode(_notes.map((n) => n.toJson()).toList());
-    await prefs.setString('notes', data);
+  /// Salva tutte le note in JSON locale
+  Future<void> _saveLocalNotes() async {
+    final file = await _getNotesFile();
+    final jsonData = jsonEncode(_notes.map((n) => n.toJson()).toList());
+    await file.writeAsString(jsonData);
   }
 
-  /// 🔹 Aggiunge o aggiorna una nota
-  Future<void> upsertNote(NoteModel note) async {
+  /// Percorso file JSON
+  Future<File> _getNotesFile() async {
+    final dir = await getApplicationDocumentsDirectory();
+    return File("${dir.path}/notes.json");
+  }
+
+  /// Aggiunge o aggiorna una nota
+  Future<void> addOrUpdate(NoteModel note, {bool sync = true}) async {
     final index = _notes.indexWhere((n) => n.id == note.id);
-    if (index >= 0) {
+    if (index != -1) {
       _notes[index] = note;
     } else {
       _notes.add(note);
     }
-    await _saveLocal();
+    await _saveLocalNotes();
+
+    if (sync) await _saveToCloud(note);
     notifyListeners();
   }
 
-  /// 🔹 Rimuove una nota
-  Future<void> deleteNote(String id) async {
+  /// Rimuove una nota
+  Future<void> delete(String id) async {
     _notes.removeWhere((n) => n.id == id);
-    await _saveLocal();
+    await _saveLocalNotes();
     notifyListeners();
   }
 
-  /// 🔹 Sincronizza con Firestore (upload locale → cloud)
-  Future<void> syncToCloud(String uid) async {
-    try {
-      final ref = _firestore.collection('users').doc(uid).collection('notes');
-      for (final note in _notes) {
-        await ref.doc(note.id).set(note.toJson(), SetOptions(merge: true));
-      }
-      debugPrint("✅ Note sincronizzate con Firestore");
-    } catch (e) {
-      debugPrint("⚠️ Errore durante syncToCloud: $e");
-    }
-  }
+  /// Sincronizza con Firestore
+  Future<void> syncWithCloud(AuthService auth) async {
+    final user = auth.currentUser;
+    if (user == null) return;
 
-  /// 🔹 Scarica note dal cloud e unisce con locali
-  Future<void> syncFromCloud(String uid) async {
-    try {
-      final ref = _firestore.collection('users').doc(uid).collection('notes');
-      final snap = await ref.get();
+    final ref = _firestore.collection('users').doc(user.uid).collection('notes');
 
-      final cloudNotes = snap.docs.map((d) => NoteModel.fromJson(d.data())).toList();
+    // 🔄 Scarica dal cloud
+    final snapshot = await ref.get();
+    for (var doc in snapshot.docs) {
+      final cloudNote = NoteModel.fromDoc(doc);
+      final localIndex = _notes.indexWhere((n) => n.id == cloudNote.id);
 
-      // 🔁 Merge intelligente tra locale e cloud
-      for (final n in cloudNotes) {
-        final localIndex = _notes.indexWhere((x) => x.id == n.id);
-        if (localIndex >= 0) {
-          final local = _notes[localIndex];
-          if (n.updatedAt.isAfter(local.updatedAt)) {
-            _notes[localIndex] = n;
-          }
+      // Se locale è più vecchia → aggiorna con cloud
+      if (localIndex == -1 ||
+          cloudNote.updatedAt.isAfter(_notes[localIndex].updatedAt)) {
+        if (localIndex == -1) {
+          _notes.add(cloudNote);
         } else {
-          _notes.add(n);
+          _notes[localIndex] = cloudNote;
         }
       }
-
-      await _saveLocal();
-      notifyListeners();
-      debugPrint("✅ Note sincronizzate dal Cloud");
-    } catch (e) {
-      debugPrint("⚠️ Errore durante syncFromCloud: $e");
     }
+
+    // 🔼 Carica note locali non presenti su cloud
+    for (var note in _notes) {
+      await _saveToCloud(note);
+    }
+
+    await _saveLocalNotes();
+    notifyListeners();
   }
 
-  /// 🔹 Crea una nuova nota con ID univoco
-  NoteModel createEmptyNote({
-    String title = '',
-    String content = '',
-    String colorHex = '#FFFFFFFF',
-  }) {
-    final newNote = NoteModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: title,
-      content: content,
-      colorHex: colorHex,
-      updatedAt: DateTime.now(),
-      attachments: [],
-    );
-    return newNote;
+  /// Salva singola nota su Firestore
+  Future<void> _saveToCloud(NoteModel note) async {
+    try {
+      final user = await AuthService().getUser();
+      if (user == null) return;
+
+      final ref = _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('notes')
+          .doc(note.id);
+
+      await ref.set(note.toJson());
+    } catch (e) {
+      debugPrint("Errore salvataggio cloud: $e");
+    }
   }
 }
