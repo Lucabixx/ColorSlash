@@ -1,22 +1,22 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_sound/flutter_sound.dart';
-import 'package:colorslash/utils/app_colors.dart';
-import 'package:colorslash/widgets/media_viewer.dart';
-import 'package:colorslash/widgets/sketch_pad.dart';
+import 'package:uuid/uuid.dart';
+
+import '../models/note_model.dart';
+import '../services/note_service.dart';
+import '../utils/app_colors.dart';
+import '../widgets/media_viewer.dart';
+import '../widgets/sketch_pad.dart';
 
 class NoteEditorScreen extends StatefulWidget {
-  final String? noteId;
-  final String type; // "note" o "list"
+  final NoteModel? existingNote;
+  final String type;
 
-  const NoteEditorScreen({
-    super.key,
-    this.noteId,
-    required this.type,
-  });
+  const NoteEditorScreen({super.key, this.existingNote, required this.type});
 
   @override
   State<NoteEditorScreen> createState() => _NoteEditorScreenState();
@@ -28,106 +28,67 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   final _picker = ImagePicker();
   final _recorder = FlutterSoundRecorder();
 
-  List<Map<String, dynamic>> _media = [];
+  List<Attachment> _attachments = [];
   Color _color = Colors.white;
   bool _isRecording = false;
-  bool _isNew = true;
 
   @override
   void initState() {
     super.initState();
     _recorder.openRecorder();
-    if (widget.noteId != null) {
-      _isNew = false;
-      _loadNote();
+    if (widget.existingNote != null) {
+      final n = widget.existingNote!;
+      _titleController.text = n.title;
+      _contentController.text = n.content;
+      _color = Color(int.parse(n.colorHex.replaceFirst('#', '0x')));
+      _attachments = List.from(n.attachments);
     }
   }
 
   @override
   void dispose() {
+    _recorder.closeRecorder();
     _titleController.dispose();
     _contentController.dispose();
-    _recorder.closeRecorder();
     super.dispose();
   }
 
-  Future<File> _getNotesFile() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return File("${dir.path}/notes.json");
-  }
-
-  /// 🔹 Crea un ID univoco
-  String _generateId() => DateTime.now().millisecondsSinceEpoch.toString();
-
-  /// 🔹 Carica una nota esistente dal file
-  Future<void> _loadNote() async {
-    final file = await _getNotesFile();
-    if (!await file.exists()) return;
-    final notes = List<Map<String, dynamic>>.from(jsonDecode(await file.readAsString()));
-    final note = notes.firstWhere(
-      (n) => n['id'] == widget.noteId,
-      orElse: () => {},
-    );
-    if (note.isNotEmpty) {
-      setState(() {
-        _titleController.text = note['title'] ?? '';
-        _contentController.text = note['content'] ?? '';
-        _color = Color(note['color'] ?? Colors.white.value);
-        _media = List<Map<String, dynamic>>.from(note['media'] ?? []);
-      });
-    }
-  }
-
-  /// 💾 Salva o aggiorna la nota
   Future<void> _saveNote() async {
-    final file = await _getNotesFile();
-    final notes = await file.exists()
-        ? List<Map<String, dynamic>>.from(jsonDecode(await file.readAsString()))
-        : [];
+    final noteService = context.read<NoteService>();
+    final id = widget.existingNote?.id ?? const Uuid().v4();
 
-    final noteId = widget.noteId ?? _generateId();
-    final note = {
-      'id': noteId,
-      'type': widget.type,
-      'title': _titleController.text.trim(),
-      'content': _contentController.text.trim(),
-      'color': _color.value,
-      'updatedAt': DateTime.now().millisecondsSinceEpoch,
-      'media': _media,
-    };
+    final note = NoteModel(
+      id: id,
+      type: widget.type,
+      title: _titleController.text.trim(),
+      content: _contentController.text.trim(),
+      colorHex: '#${_color.value.toRadixString(16).padLeft(8, '0')}',
+      updatedAt: DateTime.now(),
+      attachments: _attachments,
+    );
 
-    final index = notes.indexWhere((n) => n['id'] == noteId);
-    if (index != -1) {
-      notes[index] = note;
-    } else {
-      notes.add(note);
-    }
-
-    await file.writeAsString(jsonEncode(notes));
+    await noteService.addOrUpdate(note);
   }
 
-  /// 🖼️ Scelta immagine
   Future<void> _pickImage() async {
     final img = await _picker.pickImage(source: ImageSource.gallery);
     if (img != null) {
-      setState(() => _media.add({'type': 'image', 'path': img.path}));
+      setState(() => _attachments.add(Attachment(type: 'image', url: img.path)));
     }
   }
 
-  /// 🎥 Scelta video
   Future<void> _pickVideo() async {
     final video = await _picker.pickVideo(source: ImageSource.gallery);
     if (video != null) {
-      setState(() => _media.add({'type': 'video', 'path': video.path}));
+      setState(() => _attachments.add(Attachment(type: 'video', url: video.path)));
     }
   }
 
-  /// 🎙️ Registra o ferma audio
   Future<void> _toggleRecording() async {
     if (_isRecording) {
       final path = await _recorder.stopRecorder();
       if (path != null) {
-        setState(() => _media.add({'type': 'audio', 'path': path}));
+        setState(() => _attachments.add(Attachment(type: 'audio', url: path)));
       }
     } else {
       final dir = await getTemporaryDirectory();
@@ -137,7 +98,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     setState(() => _isRecording = !_isRecording);
   }
 
-  /// 🎨 Cambia colore
   Future<void> _openColorPicker() async {
     final selected = await showDialog<Color>(
       context: context,
@@ -148,26 +108,27 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           content: Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: AppColors.noteColors.map(
-              (c) {
-                final isSelected = selectedColor == c;
-                return GestureDetector(
-                  onTap: () => setState(() => selectedColor = c),
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: c,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isSelected ? AppColors.primaryLight : Colors.grey,
-                        width: 2,
+            children: AppColors.noteColors
+                .map(
+                  (c) => GestureDetector(
+                    onTap: () => selectedColor = c,
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: c,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: selectedColor == c
+                              ? AppColors.primaryLight
+                              : Colors.grey,
+                          width: 2,
+                        ),
                       ),
                     ),
                   ),
-                );
-              },
-            ).toList(),
+                )
+                .toList(),
           ),
           actions: [
             TextButton(
@@ -178,25 +139,22 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         );
       },
     );
-    if (selected != null) {
-      setState(() => _color = selected);
-    }
-  }
-
-  /// ✏️ Salvataggio automatico ogni volta che cambia contenuto
-  void _autoSave() {
-    _saveNote();
+    if (selected != null) setState(() => _color = selected);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _color.withOpacity(0.08),
+      backgroundColor: _color.withOpacity(0.1),
       appBar: AppBar(
-        title: Text(widget.type == 'note'
-            ? (_isNew ? 'Nuova Nota' : 'Modifica Nota')
-            : (_isNew ? 'Nuova Lista' : 'Modifica Lista')),
+        title: Text(widget.existingNote == null
+            ? "Nuova ${widget.type == 'list' ? 'Lista' : 'Nota'}"
+            : "Modifica ${widget.type == 'list' ? 'Lista' : 'Nota'}"),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.color_lens),
+            onPressed: _openColorPicker,
+          ),
           IconButton(
             icon: const Icon(Icons.save),
             onPressed: () async {
@@ -204,21 +162,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               if (context.mounted) Navigator.pop(context, true);
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.color_lens),
-            onPressed: _openColorPicker,
-          ),
         ],
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            /// Titolo
             TextField(
               controller: _titleController,
-              onChanged: (_) => _autoSave(),
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               decoration: const InputDecoration(
                 hintText: 'Titolo...',
@@ -226,61 +177,51 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               ),
             ),
             const SizedBox(height: 12),
-
-            /// Contenuto
             TextField(
               controller: _contentController,
-              onChanged: (_) => _autoSave(),
+              maxLines: null,
               decoration: const InputDecoration(
                 hintText: 'Scrivi qui...',
                 border: InputBorder.none,
               ),
-              maxLines: null,
             ),
             const SizedBox(height: 20),
 
-            /// Sezione media
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _media.map((m) {
+              children: _attachments.map((a) {
                 Widget preview;
-                if (m['type'] == 'image') {
-                  preview = Image.file(File(m['path']),
+                if (a.type == 'image') {
+                  preview = Image.file(File(a.url),
                       width: 100, height: 100, fit: BoxFit.cover);
-                } else if (m['type'] == 'video') {
-                  preview = Container(
-                    width: 100,
-                    height: 100,
-                    color: Colors.black26,
-                    child: const Icon(Icons.videocam, color: Colors.white),
-                  );
-                } else if (m['type'] == 'audio') {
-                  preview = Container(
-                    width: 100,
-                    height: 100,
-                    color: Colors.black26,
-                    child: const Icon(Icons.audiotrack, color: Colors.white),
-                  );
+                } else if (a.type == 'video') {
+                  preview = const Icon(Icons.videocam, size: 80);
+                } else if (a.type == 'audio') {
+                  preview = const Icon(Icons.audiotrack, size: 80);
                 } else {
-                  preview = Container(width: 100, height: 100, color: Colors.grey);
+                  preview = const Icon(Icons.insert_drive_file);
                 }
 
                 return GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => MediaViewer(
-                          media: _media,
-                          initialIndex: _media.indexOf(m),
-                        ),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MediaViewer(
+                        media: _attachments
+                            .map((e) =>
+                                {'type': e.type, 'path': e.url})
+                            .toList(),
+                        initialIndex: _attachments.indexOf(a),
                       ),
-                    );
-                  },
+                    ),
+                  ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: preview,
+                    child: Container(
+                      color: Colors.black26,
+                      child: preview,
+                    ),
                   ),
                 );
               }).toList(),
@@ -288,32 +229,32 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           ],
         ),
       ),
-
-      /// Floating Buttons
       floatingActionButton: Wrap(
         spacing: 10,
-        direction: Axis.horizontal,
         children: [
           FloatingActionButton(
             heroTag: 'photo',
-            onPressed: _pickImage,
             backgroundColor: AppColors.primary,
             child: const Icon(Icons.photo),
+            onPressed: _pickImage,
           ),
           FloatingActionButton(
             heroTag: 'video',
-            onPressed: _pickVideo,
             backgroundColor: AppColors.primaryDark,
             child: const Icon(Icons.videocam),
+            onPressed: _pickVideo,
           ),
           FloatingActionButton(
             heroTag: 'mic',
-            onPressed: _toggleRecording,
-            backgroundColor: _isRecording ? Colors.redAccent : AppColors.accent,
+            backgroundColor:
+                _isRecording ? Colors.redAccent : AppColors.accent,
             child: Icon(_isRecording ? Icons.stop : Icons.mic),
+            onPressed: _toggleRecording,
           ),
           FloatingActionButton(
             heroTag: 'draw',
+            backgroundColor: Colors.blueAccent,
+            child: const Icon(Icons.brush),
             onPressed: () async {
               await Navigator.push(
                 context,
@@ -325,16 +266,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                           "${dir.path}/${DateTime.now().millisecondsSinceEpoch}.png";
                       final file = File(filePath);
                       await file.writeAsBytes(data);
-                      setState(() =>
-                          _media.add({'type': 'image', 'path': file.path}));
-                      _autoSave();
+                      setState(() => _attachments
+                          .add(Attachment(type: 'image', url: file.path)));
                     },
                   ),
                 ),
               );
             },
-            backgroundColor: Colors.blueAccent,
-            child: const Icon(Icons.brush),
           ),
         ],
       ),
