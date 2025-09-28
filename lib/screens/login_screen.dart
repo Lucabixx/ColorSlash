@@ -1,36 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:colorslash/services/auth_service.dart';
-import 'package:colorslash/screens/home_screen.dart';
-import 'package:colorslash/screens/register_screen.dart';
+import '../services/auth_service.dart';
+import 'register_screen.dart';
+import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _isLoading = false;
+  final emailCtrl = TextEditingController();
+  final passCtrl = TextEditingController();
 
-  Future<void> _loginWithEmail() async {
+  bool loading = false;
+
+  Future<void> _login() async {
     final auth = Provider.of<AuthService>(context, listen: false);
-    setState(() => _isLoading = true);
+    setState(() => loading = true);
 
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Inserisci email e password")),
-      );
-      setState(() => _isLoading = false);
-      return;
-    }
+    final user = await auth.signInWithEmail(
+      emailCtrl.text.trim(),
+      passCtrl.text.trim(),
+    );
 
-    final user = await auth.signInWithEmail(email, password);
-    setState(() => _isLoading = false);
+    setState(() => loading = false);
 
     if (user != null) {
       Navigator.pushReplacement(
@@ -39,22 +35,14 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Login fallito. Se non hai verificato la tua email, controlla la posta (ti è stata inviata una mail di verifica).",
-          ),
-        ),
+        const SnackBar(content: Text("Accesso fallito. Controlla credenziali.")),
       );
     }
   }
 
-  Future<void> _loginWithGoogle() async {
+  Future<void> _loginGoogle() async {
     final auth = Provider.of<AuthService>(context, listen: false);
-    setState(() => _isLoading = true);
-
     final user = await auth.signInWithGoogle();
-    setState(() => _isLoading = false);
-
     if (user != null) {
       Navigator.pushReplacement(
         context,
@@ -62,7 +50,22 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Accesso con Google non riuscito")),
+        const SnackBar(content: Text("Accesso Google fallito.")),
+      );
+    }
+  }
+
+  Future<void> _loginAnon() async {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final user = await auth.signInAnonymously();
+    if (user != null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Accesso locale fallito.")),
       );
     }
   }
@@ -70,72 +73,84 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.deepPurple.shade50,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30.0),
+      backgroundColor: const Color(0xFF1E1E2C),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Center(
           child: SingleChildScrollView(
             child: Column(
               children: [
-                const SizedBox(height: 50),
-                const Icon(Icons.color_lens, size: 80, color: Colors.deepPurple),
-                const SizedBox(height: 20),
+                const Icon(Icons.lock, size: 80, color: Colors.deepPurpleAccent),
+                const SizedBox(height: 16),
                 const Text(
-                  "ColorSlash",
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  "Benvenuto in Color Slash",
+                  style: TextStyle(fontSize: 24, color: Colors.white),
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 32),
                 TextField(
-                  controller: _emailController,
+                  controller: emailCtrl,
                   decoration: const InputDecoration(
-                    labelText: "Email",
-                    prefixIcon: Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(),
+                    hintText: "Email",
+                    prefixIcon: Icon(Icons.email),
+                    filled: true,
+                    fillColor: Colors.white10,
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 TextField(
-                  controller: _passwordController,
+                  controller: passCtrl,
                   obscureText: true,
                   decoration: const InputDecoration(
-                    labelText: "Password",
+                    hintText: "Password",
                     prefixIcon: Icon(Icons.lock_outline),
-                    border: OutlineInputBorder(),
+                    filled: true,
+                    fillColor: Colors.white10,
                   ),
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: _isLoading ? null : _loginWithEmail,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
+                    backgroundColor: Colors.deepPurpleAccent,
                     minimumSize: const Size(double.infinity, 50),
                   ),
-                  child: _isLoading
+                  onPressed: loading ? null : _login,
+                  child: loading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text("Accedi", style: TextStyle(fontSize: 18)),
+                      : const Text("Accedi"),
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 12),
                 OutlinedButton.icon(
-                  onPressed: _isLoading ? null : _loginWithGoogle,
-                  icon: const Icon(Icons.login),
-                  label: const Text("Accedi con Google"),
-                  style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
+                  icon: const Icon(Icons.login, color: Colors.white),
+                  label: const Text(
+                    "Accedi con Google",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  onPressed: _loginGoogle,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 50),
+                    side: const BorderSide(color: Colors.white24),
+                  ),
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text("Non hai un account? "),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                        );
-                      },
-                      child: const Text("Registrati"),
-                    ),
-                  ],
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: _loginAnon,
+                  child: const Text(
+                    "Prova senza account",
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                    );
+                  },
+                  child: const Text(
+                    "Non hai un account? Registrati",
+                    style: TextStyle(color: Colors.white60),
+                  ),
                 ),
               ],
             ),
