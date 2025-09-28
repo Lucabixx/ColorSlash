@@ -9,12 +9,12 @@ import 'package:colorslash/widgets/media_viewer.dart';
 import 'package:colorslash/widgets/sketch_pad.dart';
 
 class NoteEditorScreen extends StatefulWidget {
-  final String noteId;
-  final String type;
+  final String? noteId;
+  final String type; // "note" o "list"
 
   const NoteEditorScreen({
     super.key,
-    required this.noteId,
+    this.noteId,
     required this.type,
   });
 
@@ -31,12 +31,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   List<Map<String, dynamic>> _media = [];
   Color _color = Colors.white;
   bool _isRecording = false;
+  bool _isNew = true;
 
   @override
   void initState() {
     super.initState();
-    _loadNote();
     _recorder.openRecorder();
+    if (widget.noteId != null) {
+      _isNew = false;
+      _loadNote();
+    }
   }
 
   @override
@@ -52,6 +56,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     return File("${dir.path}/notes.json");
   }
 
+  /// 🔹 Crea un ID univoco
+  String _generateId() => DateTime.now().millisecondsSinceEpoch.toString();
+
+  /// 🔹 Carica una nota esistente dal file
   Future<void> _loadNote() async {
     final file = await _getNotesFile();
     if (!await file.exists()) return;
@@ -70,23 +78,25 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     }
   }
 
+  /// 💾 Salva o aggiorna la nota
   Future<void> _saveNote() async {
     final file = await _getNotesFile();
     final notes = await file.exists()
         ? List<Map<String, dynamic>>.from(jsonDecode(await file.readAsString()))
         : [];
 
-    final index = notes.indexWhere((n) => n['id'] == widget.noteId);
+    final noteId = widget.noteId ?? _generateId();
     final note = {
-      'id': widget.noteId,
+      'id': noteId,
       'type': widget.type,
-      'title': _titleController.text,
-      'content': _contentController.text,
+      'title': _titleController.text.trim(),
+      'content': _contentController.text.trim(),
       'color': _color.value,
       'updatedAt': DateTime.now().millisecondsSinceEpoch,
       'media': _media,
     };
 
+    final index = notes.indexWhere((n) => n['id'] == noteId);
     if (index != -1) {
       notes[index] = note;
     } else {
@@ -96,6 +106,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     await file.writeAsString(jsonEncode(notes));
   }
 
+  /// 🖼️ Scelta immagine
   Future<void> _pickImage() async {
     final img = await _picker.pickImage(source: ImageSource.gallery);
     if (img != null) {
@@ -103,6 +114,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     }
   }
 
+  /// 🎥 Scelta video
   Future<void> _pickVideo() async {
     final video = await _picker.pickVideo(source: ImageSource.gallery);
     if (video != null) {
@@ -110,6 +122,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     }
   }
 
+  /// 🎙️ Registra o ferma audio
   Future<void> _toggleRecording() async {
     if (_isRecording) {
       final path = await _recorder.stopRecorder();
@@ -124,6 +137,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     setState(() => _isRecording = !_isRecording);
   }
 
+  /// 🎨 Cambia colore
   Future<void> _openColorPicker() async {
     final selected = await showDialog<Color>(
       context: context,
@@ -134,25 +148,26 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           content: Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: AppColors.noteColors
-                .map(
-                  (c) => GestureDetector(
-                    onTap: () => selectedColor = c,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: c,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: selectedColor == c ? AppColors.primaryLight : Colors.grey,
-                          width: 2,
-                        ),
+            children: AppColors.noteColors.map(
+              (c) {
+                final isSelected = selectedColor == c;
+                return GestureDetector(
+                  onTap: () => setState(() => selectedColor = c),
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: c,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSelected ? AppColors.primaryLight : Colors.grey,
+                        width: 2,
                       ),
                     ),
                   ),
-                )
-                .toList(),
+                );
+              },
+            ).toList(),
           ),
           actions: [
             TextButton(
@@ -168,12 +183,19 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     }
   }
 
+  /// ✏️ Salvataggio automatico ogni volta che cambia contenuto
+  void _autoSave() {
+    _saveNote();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _color.withOpacity(0.1),
+      backgroundColor: _color.withOpacity(0.08),
       appBar: AppBar(
-        title: Text(widget.type == 'note' ? 'Modifica Nota' : 'Modifica Lista'),
+        title: Text(widget.type == 'note'
+            ? (_isNew ? 'Nuova Nota' : 'Modifica Nota')
+            : (_isNew ? 'Nuova Lista' : 'Modifica Lista')),
         actions: [
           IconButton(
             icon: const Icon(Icons.save),
@@ -188,12 +210,15 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           ),
         ],
       ),
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            /// Titolo
             TextField(
               controller: _titleController,
+              onChanged: (_) => _autoSave(),
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               decoration: const InputDecoration(
                 hintText: 'Titolo...',
@@ -201,8 +226,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               ),
             ),
             const SizedBox(height: 12),
+
+            /// Contenuto
             TextField(
               controller: _contentController,
+              onChanged: (_) => _autoSave(),
               decoration: const InputDecoration(
                 hintText: 'Scrivi qui...',
                 border: InputBorder.none,
@@ -210,15 +238,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               maxLines: null,
             ),
             const SizedBox(height: 20),
-            
-            /// 🖼️ SEZIONE MEDIA CON TAP PER VISUALIZZAZIONE
+
+            /// Sezione media
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: _media.map((m) {
                 Widget preview;
                 if (m['type'] == 'image') {
-                  preview = Image.file(File(m['path']), width: 100, height: 100, fit: BoxFit.cover);
+                  preview = Image.file(File(m['path']),
+                      width: 100, height: 100, fit: BoxFit.cover);
                 } else if (m['type'] == 'video') {
                   preview = Container(
                     width: 100,
@@ -259,8 +288,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           ],
         ),
       ),
-      
-      /// 🎙️ FLOATING ACTION BUTTONS
+
+      /// Floating Buttons
       floatingActionButton: Wrap(
         spacing: 10,
         direction: Axis.horizontal,
@@ -292,10 +321,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                   builder: (_) => SketchPad(
                     onSave: (data) async {
                       final dir = await getTemporaryDirectory();
-                      final filePath = "${dir.path}/${DateTime.now().millisecondsSinceEpoch}.png";
+                      final filePath =
+                          "${dir.path}/${DateTime.now().millisecondsSinceEpoch}.png";
                       final file = File(filePath);
                       await file.writeAsBytes(data);
-                      setState(() => _media.add({'type': 'image', 'path': file.path}));
+                      setState(() =>
+                          _media.add({'type': 'image', 'path': file.path}));
+                      _autoSave();
                     },
                   ),
                 ),
