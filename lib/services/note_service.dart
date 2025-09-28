@@ -1,120 +1,113 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/note.dart';
+import '../models/note_model.dart';
 import 'auth_service.dart';
 
 class NoteService extends ChangeNotifier {
-  final List<Note> _notes = [];
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final List<NoteModel> _notes = [];
+  List<NoteModel> get notes => List.unmodifiable(_notes);
 
-  List<Note> get notes => List.unmodifiable(_notes);
+  final _firestore = FirebaseFirestore.instance;
 
-  /// Carica le note locali all'avvio
-  Future<void> loadNotes() async {
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getStringList('notes') ?? [];
-    _notes.clear();
-    _notes.addAll(stored.map((json) => _fromJson(json)).toList());
-    notifyListeners();
-  }
-
-  /// Aggiungi una nuova nota
-  void addNote(Note note) {
-    _notes.add(note);
-    _saveLocal();
-    notifyListeners();
-  }
-
-  /// Aggiorna una nota
-  void updateNote(String id, Note updated) {
-    final i = _notes.indexWhere((n) => n.id == id);
-    if (i != -1) {
-      _notes[i] = updated;
-      _saveLocal();
-      notifyListeners();
-    }
-  }
-
-  /// Elimina una nota
-  void deleteNote(String id, BuildContext context) {
-    _notes.removeWhere((n) => n.id == id);
-    _saveLocal();
-    notifyListeners();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Nota eliminata"),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-
-  /// 🔄 Sincronizza locale ↔️ cloud
-  Future<void> syncNotes(AuthService auth) async {
-    final user = auth.currentUser;
-    if (user == null) return; // non loggato → solo locale
-
+  /// Carica le note da file locale
+  Future<void> loadLocalNotes() async {
     try {
-      final ref = _firestore.collection('users').doc(user.uid).collection('notes');
-
-      // carica le note locali su Firestore
-      for (var n in _notes) {
-        await ref.doc(n.id).set(_toMap(n));
-      }
-
-      // scarica le note dal cloud (merge)
-      final snapshot = await ref.get();
-      for (var doc in snapshot.docs) {
-        final cloudNote = _fromMap(doc.data());
-        final exists = _notes.any((n) => n.id == cloudNote.id);
-        if (!exists) _notes.add(cloudNote);
-      }
-
-      await _saveLocal();
+      final file = await _getNotesFile();
+      if (!await file.exists()) return;
+      final data = jsonDecode(await file.readAsString());
+      _notes.clear();
+      _notes.addAll((data as List).map((e) => NoteModel.fromJson(e)));
       notifyListeners();
     } catch (e) {
-      debugPrint("Errore sincronizzazione: $e");
+      debugPrint("Errore caricamento locale: $e");
     }
   }
 
-  /// Salva tutto in locale
-  Future<void> _saveLocal() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonList = _notes.map((n) => _toJson(n)).toList();
-    await prefs.setStringList('notes', jsonList);
+  /// Salva tutte le note in JSON locale
+  Future<void> _saveLocalNotes() async {
+    final file = await _getNotesFile();
+    final jsonData = jsonEncode(_notes.map((n) => n.toJson()).toList());
+    await file.writeAsString(jsonData);
   }
 
-  /// --- Utility JSON ---
-  String _toJson(Note n) => jsonEncode({
-        'id': n.id,
-        'title': n.title,
-        'content': n.content,
-        'color': n.color.value,
-      });
-
-  Note _fromJson(String str) {
-    final data = jsonDecode(str);
-    return Note(
-      id: data['id'],
-      title: data['title'],
-      content: data['content'],
-      color: Color(data['color']),
-    );
+  /// Percorso file JSON
+  Future<File> _getNotesFile() async {
+    final dir = await getApplicationDocumentsDirectory();
+    return File("${dir.path}/notes.json");
   }
 
-  Map<String, dynamic> _toMap(Note n) => {
-        'id': n.id,
-        'title': n.title,
-        'content': n.content,
-        'color': n.color.value,
-      };
+  /// Aggiunge o aggiorna una nota
+  Future<void> addOrUpdate(NoteModel note, {bool sync = true}) async {
+    final index = _notes.indexWhere((n) => n.id == note.id);
+    if (index != -1) {
+      _notes[index] = note;
+    } else {
+      _notes.add(note);
+    }
+    await _saveLocalNotes();
 
-  Note _fromMap(Map<String, dynamic> map) => Note(
-        id: map['id'],
-        title: map['title'],
-        content: map['content'],
-        color: Color(map['color']),
-      );
+    if (sync) await _saveToCloud(note);
+    notifyListeners();
+  }
+
+  /// Rimuove una nota
+  Future<void> delete(String id) async {
+    _notes.removeWhere((n) => n.id == id);
+    await _saveLocalNotes();
+    notifyListeners();
+  }
+
+  /// Sincronizza con Firestore
+  Future<void> syncWithCloud(AuthService auth) async {
+    final user = auth.currentUser;
+    if (user == null) return;
+
+    final ref = _firestore.collection('users').doc(user.uid).collection('notes');
+
+    // 🔄 Scarica dal cloud
+    final snapshot = await ref.get();
+    for (var doc in snapshot.docs) {
+      final cloudNote = NoteModel.fromDoc(doc);
+      final localIndex = _notes.indexWhere((n) => n.id == cloudNote.id);
+
+      // Se locale è più vecchia → aggiorna con cloud
+      if (localIndex == -1 ||
+          cloudNote.updatedAt.isAfter(_notes[localIndex].updatedAt)) {
+        if (localIndex == -1) {
+          _notes.add(cloudNote);
+        } else {
+          _notes[localIndex] = cloudNote;
+        }
+      }
+    }
+
+    // 🔼 Carica note locali non presenti su cloud
+    for (var note in _notes) {
+      await _saveToCloud(note);
+    }
+
+    await _saveLocalNotes();
+    notifyListeners();
+  }
+
+  /// Salva singola nota su Firestore
+  Future<void> _saveToCloud(NoteModel note) async {
+    try {
+      final user = await AuthService().getUser();
+      if (user == null) return;
+
+      final ref = _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('notes')
+          .doc(note.id);
+
+      await ref.set(note.toJson());
+    } catch (e) {
+      debugPrint("Errore salvataggio cloud: $e");
+    }
+  }
 }
