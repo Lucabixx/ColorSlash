@@ -10,6 +10,7 @@ Future<void> main() async {
   // ✅ Inizializzazione Firebase centralizzata
   try {
     await FirebaseService.initializeFirebase(GlobalContext.context);
+    await Firebase.initializeApp();
   } catch (e) {
     debugPrint("Errore durante l'inizializzazione Firebase: $e");
   }
@@ -52,3 +53,4 @@ class ColorSlashApp extends StatelessWidget {
     );
   }
 }
+
