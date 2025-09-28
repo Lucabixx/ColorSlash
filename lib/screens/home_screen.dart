@@ -1,4 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import 'info_screen.dart';
@@ -14,20 +17,43 @@ class _HomeScreenState extends State<HomeScreen> {
   bool? rememberChoice;
   String? preferredType; // "note" or "list"
   bool _isSyncing = false;
+  List<Map<String, dynamic>> _notes = [];
 
   @override
   void initState() {
     super.initState();
+    _loadNotes();
     _autoSync();
   }
 
-  /// 🔹 Avvia la sincronizzazione automatica all’apertura
+  /// 🔹 Carica le note dal file locale `notes.json`
+  Future<void> _loadNotes() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File("${dir.path}/notes.json");
+
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        final decoded = jsonDecode(content);
+
+        setState(() {
+          _notes = List<Map<String, dynamic>>.from(decoded);
+        });
+      } else {
+        setState(() => _notes = []);
+      }
+    } catch (e) {
+      debugPrint("Errore nel caricamento note locali: $e");
+    }
+  }
+
+  /// 🔹 Sincronizzazione automatica all’avvio
   Future<void> _autoSync() async {
     final auth = context.read<AuthService>();
-
     setState(() => _isSyncing = true);
     try {
       await auth.syncWithCloud(context);
+      await _loadNotes();
     } catch (e) {
       debugPrint("Errore durante la sincronizzazione automatica: $e");
     } finally {
@@ -35,6 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// 🔹 Crea nuova nota o lista
   void _onAddPressed() {
     if (rememberChoice == true && preferredType != null) {
       _openEditor(preferredType!);
@@ -92,13 +119,18 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _openEditor(String type) {
-    Navigator.push(
+  void _openEditor(String type) async {
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => NoteEditorScreen(noteId: UniqueKey().toString()),
       ),
     );
+
+    // 🔹 Ricarica le note se l’editor ha salvato qualcosa
+    if (result == true) {
+      await _loadNotes();
+    }
   }
 
   @override
@@ -133,6 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () async {
               setState(() => _isSyncing = true);
               await auth.syncWithCloud(context);
+              await _loadNotes();
               setState(() => _isSyncing = false);
             },
           ),
@@ -156,6 +189,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () async {
                 setState(() => _isSyncing = true);
                 await auth.syncWithCloud(context);
+                await _loadNotes();
                 setState(() => _isSyncing = false);
                 Navigator.pop(context);
               },
@@ -171,15 +205,49 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      body: Center(
-        child: _isSyncing
-            ? const CircularProgressIndicator()
-            : const Text(
-                "Premi + per creare una nota o una lista multimediale",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white70),
-              ),
-      ),
+
+      /// 🔹 Mostra lista note locali
+      body: _isSyncing
+          ? const Center(child: CircularProgressIndicator())
+          : _notes.isEmpty
+              ? const Center(
+                  child: Text(
+                    "Nessuna nota salvata.\nPremi + per crearne una!",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(8),
+                  itemCount: _notes.length,
+                  itemBuilder: (context, index) {
+                    final note = _notes[index];
+                    return Card(
+                      color: Colors.deepPurple.shade100,
+                      child: ListTile(
+                        title: Text(note['title'] ?? 'Senza titolo'),
+                        subtitle: Text(
+                          note['content'] ?? '',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => NoteEditorScreen(
+                                noteId: note['id'],
+                              ),
+                            ),
+                          ).then((value) async {
+                            if (value == true) await _loadNotes();
+                          });
+                        },
+                      ),
+                    );
+                  },
+                ),
+
       floatingActionButton: FloatingActionButton(
         onPressed: _onAddPressed,
         backgroundColor: Colors.blueAccent,
