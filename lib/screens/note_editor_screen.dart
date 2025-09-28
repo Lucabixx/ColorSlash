@@ -7,7 +7,11 @@ class NoteEditorScreen extends StatefulWidget {
   final String noteId;
   final String type; // "note" o "list"
 
-  const NoteEditorScreen({super.key, required this.noteId, required this.type});
+  const NoteEditorScreen({
+    super.key,
+    required this.noteId,
+    required this.type,
+  });
 
   @override
   State<NoteEditorScreen> createState() => _NoteEditorScreenState();
@@ -67,9 +71,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       try {
         final decoded = jsonDecode(await file.readAsString());
         notes = List<Map<String, dynamic>>.from(decoded);
-      } catch (e) {
-        notes = [];
-      }
+      } catch (_) {}
     }
 
     final newNote = {
@@ -82,7 +84,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       "lastModified": DateTime.now().toIso8601String(),
     };
 
-    // Se esiste, aggiorna — altrimenti aggiungi
     final index = notes.indexWhere((n) => n['id'] == widget.noteId);
     if (index != -1) {
       notes[index] = newNote;
@@ -91,18 +92,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     }
 
     await file.writeAsString(jsonEncode(notes));
-
     setState(() => _isLoading = false);
 
-    if (context.mounted) {
-      Navigator.pop(context, true);
-    }
+    if (context.mounted) Navigator.pop(context, true);
   }
 
   void _addListItem() {
-    setState(() {
-      _listItems.add("");
-    });
+    setState(() => _listItems.add(""));
   }
 
   Future<void> _pickColor() async {
@@ -225,7 +221,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   }
 }
 
-// 🔹 Blocchi di colore per la selezione rapida
 class BlockPicker extends StatelessWidget {
   final Color pickerColor;
   final ValueChanged<Color> onColorChanged;
