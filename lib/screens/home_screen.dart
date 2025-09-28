@@ -1,14 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+
 import '../services/auth_service.dart';
 import 'note_editor_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -58,17 +59,17 @@ class _HomeScreenState extends State<HomeScreen> {
   void _applyFilters() {
     List<Map<String, dynamic>> result = List.from(_notes);
 
-    // 🔹 Filtro tipo
+    // filtro tipo
     if (_filterType != 'all') {
       result = result.where((n) => n['type'] == _filterType).toList();
     }
 
-    // 🔹 Filtro colore
+    // filtro colore
     if (_filterColor != null) {
       result = result.where((n) => n['color'] == _filterColor!.value).toList();
     }
 
-    // 🔹 Ricerca testo
+    // ricerca testo
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
       result = result.where((n) {
@@ -78,16 +79,14 @@ class _HomeScreenState extends State<HomeScreen> {
       }).toList();
     }
 
-    // 🔹 Ordinamento
+    // ordinamento
     result.sort((a, b) {
       dynamic vA = a[_sortKey];
       dynamic vB = b[_sortKey];
-
       if (_sortKey == 'date') {
         vA = DateTime.tryParse(vA ?? '') ?? DateTime(0);
         vB = DateTime.tryParse(vB ?? '') ?? DateTime(0);
       }
-
       final cmp = vA.toString().compareTo(vB.toString());
       return _ascending ? cmp : -cmp;
     });
@@ -97,17 +96,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _addOrEditNote([Map<String, dynamic>? existing]) async {
     final id = existing?['id'] ?? DateTime.now().millisecondsSinceEpoch.toString();
-
-    final result = await Navigator.push(
+    final result = await Navigator.push<bool?>(
       context,
       MaterialPageRoute(
         builder: (_) => NoteEditorScreen(
           noteId: id,
           type: existing?['type'] ?? 'note',
+          // existing data non supportato qui (se necessario aggiungere)
         ),
       ),
     );
-
     if (result == true) {
       await _loadNotes();
     }
@@ -129,33 +127,23 @@ class _HomeScreenState extends State<HomeScreen> {
           content: Wrap(
             spacing: 8,
             children: [
-              for (final c in [
-                Colors.white,
-                Colors.red,
-                Colors.green,
-                Colors.blue,
-                Colors.yellow,
-                Colors.purple
-              ])
+              for (final c in [Colors.white, Colors.red, Colors.green, Colors.blue, Colors.yellow, Colors.purple])
                 GestureDetector(
                   onTap: () => selected = c,
                   child: Container(
                     width: 30,
                     height: 30,
+                    margin: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
                       color: c,
                       shape: BoxShape.circle,
-                      border: Border.all(
-                        color: selected == c ? Colors.black : Colors.grey,
-                      ),
+                      border: Border.all(color: selected == c ? Colors.black : Colors.grey),
                     ),
                   ),
                 ),
             ],
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, selected), child: const Text('OK')),
-          ],
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx, selected), child: const Text('OK'))],
         );
       },
     );
@@ -173,14 +161,13 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() => _syncing = true);
       await auth.syncWithCloud(context);
       await _loadNotes();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sincronizzazione completata ✅')),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sincronizzazione completata ✅')));
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Errore sincronizzazione: $e')),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Errore sincronizzazione: $e')));
+      }
     } finally {
       setState(() => _syncing = false);
     }
@@ -197,37 +184,26 @@ class _HomeScreenState extends State<HomeScreen> {
     _applyFilters();
   }
 
-  /// 🔹 Evidenzia le parole cercate nel titolo/contenuto
   Widget _highlightText(String text, String query) {
-    if (query.isEmpty) return Text(text);
-
+    if (query.isEmpty) return Text(text, style: const TextStyle(color: Colors.white));
     final lowerText = text.toLowerCase();
     final lowerQuery = query.toLowerCase();
-    final spans = <TextSpan>[];
+    final List<InlineSpan> spans = [];
     int start = 0;
-
     while (true) {
       final index = lowerText.indexOf(lowerQuery, start);
       if (index == -1) {
         spans.add(TextSpan(text: text.substring(start)));
         break;
       }
-      if (index > start) {
-        spans.add(TextSpan(text: text.substring(start, index)));
-      }
+      if (index > start) spans.add(TextSpan(text: text.substring(start, index)));
       spans.add(TextSpan(
         text: text.substring(index, index + query.length),
-        style: const TextStyle(
-          backgroundColor: Colors.yellow,
-          fontWeight: FontWeight.bold,
-        ),
+        style: const TextStyle(backgroundColor: Colors.yellow, fontWeight: FontWeight.bold),
       ));
       start = index + query.length;
     }
-
-    return RichText(
-      text: TextSpan(style: const TextStyle(color: Colors.white), children: spans),
-    );
+    return RichText(text: TextSpan(style: const TextStyle(color: Colors.white), children: spans));
   }
 
   @override
@@ -242,13 +218,11 @@ class _HomeScreenState extends State<HomeScreen> {
           if (_syncing)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Center(
-                child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-              ),
+              child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
             ),
           IconButton(icon: const Icon(Icons.cloud_sync), onPressed: _syncing ? null : _syncWithCloud),
           IconButton(icon: const Icon(Icons.filter_alt_off), onPressed: _resetFilters),
-          PopupMenuButton(
+          PopupMenuButton<String>(
             onSelected: (val) {
               if (val == 'note' || val == 'list' || val == 'all') {
                 _filterType = val;
@@ -259,17 +233,17 @@ class _HomeScreenState extends State<HomeScreen> {
               }
               _applyFilters();
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'note', child: Text('Solo Note')),
-              const PopupMenuItem(value: 'list', child: Text('Solo Liste')),
-              const PopupMenuItem(value: 'all', child: Text('Tutti')),
-              const PopupMenuDivider(),
-              const PopupMenuItem(value: 'title', child: Text('Ordina per Titolo')),
-              const PopupMenuItem(value: 'date', child: Text('Ordina per Data')),
-              const PopupMenuItem(value: 'color', child: Text('Ordina per Colore')),
-              const PopupMenuDivider(),
-              const PopupMenuItem(value: 'asc', child: Text('Crescente')),
-              const PopupMenuItem(value: 'desc', child: Text('Decrescente')),
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'note', child: Text('Solo Note')),
+              PopupMenuItem(value: 'list', child: Text('Solo Liste')),
+              PopupMenuItem(value: 'all', child: Text('Tutti')),
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'title', child: Text('Ordina per Titolo')),
+              PopupMenuItem(value: 'date', child: Text('Ordina per Data')),
+              PopupMenuItem(value: 'color', child: Text('Ordina per Colore')),
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'asc', child: Text('Crescente')),
+              PopupMenuItem(value: 'desc', child: Text('Decrescente')),
             ],
           ),
         ],
@@ -279,10 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Padding(
             padding: const EdgeInsets.all(12),
             child: TextField(
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: 'Cerca...',
-              ),
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Cerca...'),
               onChanged: (v) {
                 _searchQuery = v;
                 _applyFilters();
@@ -309,7 +280,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       final color = Color(n['color'] ?? Colors.white.value);
                       final title = n['title'] ?? '';
                       final content = n['content'] ?? '';
-
                       return Dismissible(
                         key: Key(n['id']),
                         direction: DismissDirection.endToStart,
@@ -323,17 +293,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: ListTile(
                           onTap: () => _addOrEditNote(n),
                           onLongPress: () => _changeColor(n),
-                          leading: Container(
-                            width: 12,
-                            height: 12,
-                            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                          ),
+                          leading: Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
                           title: _highlightText(title, _searchQuery),
                           subtitle: _highlightText(content, _searchQuery),
-                          trailing: Icon(
-                            n['type'] == 'note' ? Icons.sticky_note_2 : Icons.list_alt,
-                            color: Colors.white70,
-                          ),
+                          trailing: Icon(n['type'] == 'note' ? Icons.sticky_note_2 : Icons.list_alt, color: Colors.white70),
                         ),
                       );
                     },
@@ -341,16 +304,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      floatingActionButton: PopupMenuButton(
-      icon: const Icon(Icons.add),
-      onSelected: (v) => _addOrEditNote({'type': v}),
-      itemBuilder: (_) => [
-      const PopupMenuItem(value: 'note', child: Text('Nuova Nota')),
-      const PopupMenuItem(value: 'list', child: Text('Nuova Lista')),
-  ],
-),
+      floatingActionButton: PopupMenuButton<String>(
+        icon: const Icon(Icons.add),
+        onSelected: (v) => _addOrEditNote({'type': v}),
+        itemBuilder: (_) => const [
+          PopupMenuItem(value: 'note', child: Text('Nuova Nota')),
+          PopupMenuItem(value: 'list', child: Text('Nuova Lista')),
+        ],
       ),
     );
   }
 }
-
