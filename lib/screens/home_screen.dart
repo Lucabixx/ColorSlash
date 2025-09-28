@@ -342,13 +342,15 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       floatingActionButton: PopupMenuButton(
-        icon: const Icon(Icons.add),
-        onSelected: (v) => _addOrEditNote({'type': v}),
-        itemBuilder: (_) => [
-          const PopupMenuItem(value: 'note', child: Text('Nuova Nota')),
-          const PopupMenuItem(value: 'list', child: Text('Nuova Lista')),
-        ],
+      icon: const Icon(Icons.add),
+      onSelected: (v) => _addOrEditNote({'type': v}),
+      itemBuilder: (_) => [
+      const PopupMenuItem(value: 'note', child: Text('Nuova Nota')),
+      const PopupMenuItem(value: 'list', child: Text('Nuova Lista')),
+  ],
+),
       ),
     );
   }
 }
+
