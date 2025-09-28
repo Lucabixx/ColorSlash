@@ -1,32 +1,62 @@
+// lib/services/auth_service.dart
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
 
 class AuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: <String>[
+      'email',
+      'profile',
+      'https://www.googleapis.com/auth/drive.file', // per upload su Drive (file per-app)
+    ],
+  );
+
   User? get currentUser => _auth.currentUser;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  AuthService() {
+    // Puoi aggiungere eventuali listener all'avvio se vuoi
+  }
+
+  // ----------------------------
+  // Autenticazioni
+  // ----------------------------
+  Future<User?> signInAnonymously() async {
+    try {
+      final cred = await _auth.signInAnonymously();
+      notifyListeners();
+      return cred.user;
+    } catch (e) {
+      debugPrint('Errore signInAnonymously: $e');
+      return null;
+    }
+  }
 
   Future<User?> signInWithEmail(String email, String password) async {
     try {
       final cred = await _auth.signInWithEmailAndPassword(email: email, password: password);
       final user = cred.user;
+      // se vuoi forzare la verifica email:
       if (user != null && !user.emailVerified) {
-        // invia mail verifica
+        // invia email di verifica e fai logout (opzionale)
         await user.sendEmailVerification();
-        await _auth.signOut();
-        return null;
+        // await _auth.signOut();
+        // return null;
       }
       notifyListeners();
       return user;
     } catch (e) {
-      debugPrint("Errore login email: $e");
+      debugPrint('Errore login email: $e');
       return null;
     }
   }
@@ -41,125 +71,143 @@ class AuthService extends ChangeNotifier {
       notifyListeners();
       return user;
     } catch (e) {
-      debugPrint("Errore registrazione: $e");
+      debugPrint('Errore registrazione: $e');
       return null;
     }
   }
 
   Future<User?> signInWithGoogle() async {
     try {
-      final googleUser = await GoogleSignIn().signIn();
+      final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
       final googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
         accessToken: googleAuth.accessToken,
       );
+
       final result = await _auth.signInWithCredential(credential);
       notifyListeners();
       return result.user;
     } catch (e) {
-      debugPrint("Errore Google Sign-In: $e");
+      debugPrint('Errore Google Sign-In: $e');
       return null;
     }
   }
 
+  /// Stub / scaffold per Microsoft sign-in (OneDrive). Implementazione completa richiede
+  /// registrare l'app su Azure AD, gestire redirect URI e token OAuth.
+  Future<User?> signInWithMicrosoft() async {
+    // TODO: Implementare flusso OAuth Microsoft (Azure) con WebView / external browser
+    // e poi creare account Firebase custom token oppure associare all'utente.
+    debugPrint('signInWithMicrosoft: non implementato, vedi TODO');
+    return null;
+  }
+
   Future<void> signOut() async {
-    await _auth.signOut();
     try {
-      await GoogleSignIn().signOut();
+      if (_googleSignIn.currentUser != null) {
+        await _googleSignIn.signOut();
+      }
     } catch (_) {}
+    await _auth.signOut();
     notifyListeners();
   }
 
-  // --- Funzioni locali e sync (come vedi prima) ---
-  Future<File> _getLocalFile() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return File("${dir.path}/notes.json");
-  }
-
-  Future<List<Map<String, dynamic>>> _loadLocalNotes() async {
-    final file = await _getLocalFile();
-    if (!await file.exists()) return [];
-    final content = await file.readAsString();
-    final List data = jsonDecode(content);
-    return data.cast<Map<String, dynamic>>();
-  }
-
-  Future<void> _saveLocalNotes(List<Map<String, dynamic>> notes) async {
-    final file = await _getLocalFile();
-    await file.writeAsString(jsonEncode(notes));
-  }
-
-  Future<void> syncWithCloud(BuildContext context) async {
-    final user = _auth.currentUser;
-    if (user == null) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Nessun utente loggato")),
-        );
-      }
-      return;
-    }
+  // ----------------------------
+  // Helper per Google Drive upload
+  // ----------------------------
+  /// Recupera headers di autenticazione (Bearer) per chiamate Google REST API
+  Future<Map<String, String>?> getGoogleAuthHeaders() async {
     try {
-      final localNotes = await _loadLocalNotes();
-      final cloudSnap = await _db.collection('users').doc(user.uid).collection('notes').get();
-      final cloudNotes = cloudSnap.docs.map((d) {
-        final m = Map<String, dynamic>.from(d.data());
-        m['id'] = d.id;
-        return m;
-      }).toList();
+      final account = _googleSignIn.currentUser;
+      if (account == null) {
+        // prova silent sign in
+        final silent = await _googleSignIn.signInSilently();
+        if (silent == null) return null;
+      }
+      final auth = await _googleSignIn.currentUser?.authentication;
+      final token = auth?.accessToken;
+      if (token == null) return null;
+      return {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json; charset=UTF-8',
+      };
+    } catch (e) {
+      debugPrint('getGoogleAuthHeaders error: $e');
+      return null;
+    }
+  }
 
-      final localMap = {for (var n in localNotes) n['id']: n};
-      final cloudMap = {for (var n in cloudNotes) n['id']: n};
-
-      final ids = {...localMap.keys, ...cloudMap.keys};
-
-      for (final id in ids) {
-        final local = localMap[id];
-        final cloud = cloudMap[id];
-        if (local == null && cloud != null) {
-          localNotes.add(cloud);
-        } else if (cloud == null && local != null) {
-          await _db.collection('users').doc(user.uid).collection('notes').doc(local['id']).set(local);
-        } else if (local != null && cloud != null) {
-          final lt = _parseTimestamp(local['updatedAt']);
-          final ct = _parseTimestamp(cloud['updatedAt']);
-          if (lt > ct) {
-            await _db.collection('users').doc(user.uid).collection('notes').doc(local['id']).set(local);
-          } else if (ct > lt) {
-            final idx = localNotes.indexWhere((n) => n['id'] == id);
-            if (idx != -1) localNotes[idx] = cloud;
-          }
-        }
+  /// upload file JSON notes.json su Google Drive (cartella per-app)
+  /// Se vuoi un comportamento più ricercato (es. aggiornare se già esiste), va esteso.
+  Future<bool> uploadNotesFileToDrive(File file) async {
+    try {
+      final headers = await getGoogleAuthHeaders();
+      if (headers == null) {
+        debugPrint('uploadNotesFileToDrive: no google headers');
+        return false;
       }
 
-      await _saveLocalNotes(localNotes);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Sincronizzazione completata ✅")),
-        );
+      // Carica file in multipart (metadata + content)
+      final metadata = {
+        'name': file.uri.pathSegments.last,
+        // 'parents': ['appDataFolder'] // puoi usare 'appDataFolder' per spazio privato dell'app
+      };
+
+      final uri = Uri.parse('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
+
+      final request = http.MultipartRequest('POST', uri)
+        ..headers.addAll({'Authorization': headers['Authorization'] ?? ''});
+
+      request.fields['metadata'] = jsonEncode(metadata);
+      request.files.add(await http.MultipartFile.fromPath('file', file.path, filename: file.uri.pathSegments.last));
+
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        debugPrint('Drive upload OK: ${response.body}');
+        return true;
+      } else {
+        debugPrint('Drive upload failed: ${response.statusCode} - ${response.body}');
+        return false;
       }
     } catch (e) {
-      debugPrint("Errore sincronizzazione: $e");
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Errore sincronizzazione: $e")),
-        );
-      }
+      debugPrint('uploadNotesFileToDrive error: $e');
+      return false;
     }
   }
 
-  int _parseTimestamp(dynamic v) {
-    if (v == null) return 0;
-    if (v is int) return v;
-    if (v is String) {
-      try {
-        return DateTime.tryParse(v)?.millisecondsSinceEpoch ?? 0;
-      } catch (_) {
-        return 0;
-      }
-    }
-    return 0;
+  // ----------------------------
+  // Funzioni locali utili per sync
+  // ----------------------------
+  Future<File> _getLocalNotesFile() async {
+    final dir = await getApplicationDocumentsDirectory();
+    return File('${dir.path}/notes.json');
   }
+
+  Future<List<Map<String, dynamic>>> loadLocalNotesRaw() async {
+    try {
+      final file = await _getLocalNotesFile();
+      if (!await file.exists()) return [];
+      final s = await file.readAsString();
+      final decoded = jsonDecode(s) as List<dynamic>;
+      return decoded.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } catch (e) {
+      debugPrint('loadLocalNotesRaw error: $e');
+      return [];
+    }
+  }
+
+  Future<void> saveLocalNotesRaw(List<Map<String, dynamic>> notes) async {
+    try {
+      final file = await _getLocalNotesFile();
+      await file.writeAsString(jsonEncode(notes));
+    } catch (e) {
+      debugPrint('saveLocalNotesRaw error: $e');
+    }
+  }
+
+  // helper pubblico
+  Future<User?> getUser() async => _auth.currentUser;
 }
