@@ -1,20 +1,14 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
 
 import 'services/auth_service.dart';
 import 'screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    debugPrint("Errore durante l'inizializzazione Firebase: $e");
-    // possiamo procedere comunque (ma molte funzionalità Firebase non saranno disponibili)
-  }
-
+  await Firebase.initializeApp();
   runApp(const ColorSlashApp());
 }
 
@@ -27,12 +21,20 @@ class ColorSlashApp extends StatelessWidget {
       create: (_) => AuthService(),
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        title: 'ColorSlash - Versione di Test BETA1',
-        theme: ThemeData.dark().copyWith(
+        title: 'ColorSlash',
+        theme: ThemeData(
+          brightness: Brightness.dark,
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
           scaffoldBackgroundColor: Colors.black,
-          appBarTheme: const AppBarTheme(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
-          floatingActionButtonTheme: const FloatingActionButtonThemeData(backgroundColor: Colors.blueAccent),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.blueAccent,
+            foregroundColor: Colors.white,
+            centerTitle: true,
+          ),
+          textTheme: const TextTheme(
+            bodyText1: TextStyle(color: Colors.white70),
+            bodyText2: TextStyle(color: Colors.white70),
+          ),
         ),
         home: const SplashScreen(),
       ),
