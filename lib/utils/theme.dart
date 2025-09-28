@@ -1,56 +1,67 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
-/// 🌙 Tema principale dell'app ColorSlash
+/// 🌈 Tema visivo ColorSlash con effetto 3D e glow
 class AppTheme {
-  static ThemeData get darkTheme {
-    return ThemeData.dark().copyWith(
-      scaffoldBackgroundColor: AppColors.background,
-      appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.textPrimary,
-        elevation: 0,
-        centerTitle: true,
+  static final darkTheme = ThemeData(
+    brightness: Brightness.dark,
+    scaffoldBackgroundColor: AppColors.background,
+    primaryColor: AppColors.primary,
+    colorScheme: ColorScheme.dark(
+      primary: AppColors.primary,
+      secondary: AppColors.primaryLight,
+    ),
+
+    // AppBar
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppColors.primaryDark,
+      foregroundColor: Colors.white,
+      centerTitle: true,
+      elevation: 8,
+      titleTextStyle: TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.bold,
+        color: Colors.white,
       ),
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+    ),
+
+    // Pulsanti elevati
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 14),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 12,
+        shadowColor: AppColors.primaryLight.withOpacity(0.7),
       ),
-      cardColor: AppColors.cardBackground,
-      textTheme: const TextTheme(
-        titleLarge: TextStyle(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.bold,
-          fontSize: 20,
-        ),
-        bodyMedium: TextStyle(
-          color: AppColors.textSecondary,
-          fontSize: 16,
-        ),
-        bodySmall: TextStyle(
-          color: AppColors.textMuted,
-          fontSize: 14,
-        ),
+    ),
+
+    // FAB con bagliore 3D
+    floatingActionButtonTheme: const FloatingActionButtonThemeData(
+      backgroundColor: AppColors.primaryLight,
+      foregroundColor: Colors.white,
+      elevation: 12,
+    ),
+
+    // Cards con riflesso
+    cardTheme: CardTheme(
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      elevation: 8,
+      shadowColor: AppColors.primaryLight.withOpacity(0.4),
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+    ),
+
+    // Text styles
+    textTheme: const TextTheme(
+      bodyLarge: TextStyle(color: AppColors.textPrimary, fontSize: 16),
+      bodyMedium: TextStyle(color: AppColors.textSecondary),
+      titleLarge: TextStyle(
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.bold,
+        fontSize: 20,
       ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: AppColors.cardBackground,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.accent, width: 2),
-        ),
-        labelStyle: const TextStyle(color: AppColors.textSecondary),
-      ),
-      snackBarTheme: const SnackBarThemeData(
-        backgroundColor: AppColors.primary,
-        contentTextStyle: TextStyle(color: Colors.white),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
+    ),
+  );
 }
