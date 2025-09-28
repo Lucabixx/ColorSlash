@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:colorslash/utils/app_colors.dart';
@@ -75,6 +76,34 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
     await _setupMedia();
   }
 
+  Future<void> _deleteCurrent() async {
+    final current = widget.mediaList[_currentIndex];
+    final file = File(current['path']);
+    if (await file.exists()) {
+      await file.delete();
+    }
+    setState(() {
+      widget.mediaList.removeAt(_currentIndex);
+      if (_currentIndex >= widget.mediaList.length && _currentIndex > 0) {
+        _currentIndex--;
+      }
+    });
+
+    if (widget.mediaList.isEmpty && context.mounted) {
+      Navigator.pop(context);
+    } else {
+      await _setupMedia();
+    }
+  }
+
+  Future<void> _shareCurrent() async {
+    final current = widget.mediaList[_currentIndex];
+    final file = File(current['path']);
+    if (await file.exists()) {
+      await Share.shareXFiles([XFile(file.path)], text: 'Guarda questo file da ColorSlash!');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final current = widget.mediaList[_currentIndex];
@@ -100,16 +129,60 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
                       ),
                     ),
                   );
+
                 case 'video':
                   if (_videoController == null || !_videoController!.value.isInitialized) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  return Center(
-                    child: AspectRatio(
-                      aspectRatio: _videoController!.value.aspectRatio,
-                      child: VideoPlayer(_videoController!),
-                    ),
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Center(
+                        child: AspectRatio(
+                          aspectRatio: _videoController!.value.aspectRatio,
+                          child: VideoPlayer(_videoController!),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 60,
+                        left: 0,
+                        right: 0,
+                        child: Column(
+                          children: [
+                            VideoProgressIndicator(
+                              _videoController!,
+                              allowScrubbing: true,
+                              colors: VideoProgressColors(
+                                playedColor: AppColors.primaryLight,
+                                bufferedColor: Colors.white30,
+                                backgroundColor: Colors.white10,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            IconButton(
+                              iconSize: 60,
+                              color: AppColors.primaryLight,
+                              icon: Icon(
+                                _videoController!.value.isPlaying
+                                    ? Icons.pause_circle
+                                    : Icons.play_circle,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  if (_videoController!.value.isPlaying) {
+                                    _videoController!.pause();
+                                  } else {
+                                    _videoController!.play();
+                                  }
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   );
+
                 case 'audio':
                   return Center(
                     child: Column(
@@ -150,6 +223,7 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
                       ],
                     ),
                   );
+
                 default:
                   return const Center(
                     child: Icon(Icons.error_outline, color: Colors.redAccent),
@@ -158,7 +232,7 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
             },
           ),
 
-          // 🔹 Bottone Chiudi
+          // 🔹 Chiudi
           Positioned(
             top: 40,
             left: 20,
@@ -171,7 +245,21 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
             ),
           ),
 
-          // 🔹 Indicatore di posizione
+          // 🔹 Azioni rapide
+          Positioned(
+            top: 40,
+            right: 20,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildActionButton(Icons.share, _shareCurrent, "Condividi"),
+                const SizedBox(width: 10),
+                _buildActionButton(Icons.delete, _deleteCurrent, "Elimina"),
+              ],
+            ),
+          ),
+
+          // 🔹 Indicatore posizione
           Positioned(
             bottom: 30,
             left: 0,
@@ -184,6 +272,19 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(IconData icon, VoidCallback onTap, String tooltip) {
+    return Tooltip(
+      message: tooltip,
+      child: CircleAvatar(
+        backgroundColor: AppColors.primary.withOpacity(0.3),
+        child: IconButton(
+          icon: Icon(icon, color: Colors.white),
+          onPressed: onTap,
+        ),
       ),
     );
   }
