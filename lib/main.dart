@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
 import 'services/firebase_service.dart';
 import 'screens/splash_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,4 +54,5 @@ class ColorSlashApp extends StatelessWidget {
     );
   }
 }
+
 
