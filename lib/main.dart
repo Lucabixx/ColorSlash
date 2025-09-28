@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'services/auth_service.dart';
+import 'services/note_service.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
@@ -13,7 +14,6 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    // ✅ Inizializza Firebase solo se disponibile
     await Firebase.initializeApp();
   } catch (e) {
     debugPrint("⚠️ Firebase non inizializzato: $e");
@@ -22,7 +22,7 @@ Future<void> main() async {
   runApp(const ColorSlashApp());
 }
 
-/// ✅ Chiave globale per usare SnackBar e Navigator ovunque
+/// ✅ Chiave globale per SnackBar e Navigator
 class GlobalContext {
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   static BuildContext get context => navigatorKey.currentContext!;
@@ -36,19 +36,20 @@ class ColorSlashApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) => NoteService()..loadNotes()), // 🔹 Carica note al boot
       ],
       child: MaterialApp(
         title: "ColorSlash",
         navigatorKey: GlobalContext.navigatorKey,
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.darkTheme, // 🌙 Tema personalizzato
-        home: const SplashScreen(), // Mostra splash all'avvio
+        theme: AppTheme.darkTheme,
+        home: const SplashScreen(),
       ),
     );
   }
 }
 
-/// 🔹 Splash screen con animazione 3D + bagliore orbitante
+/// 🔹 Splash screen con effetto orbitante e logo animato
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -118,7 +119,7 @@ class _SplashScreenState extends State<SplashScreen>
             },
           ),
 
-          // ✨ Logo animato in scala + dissolvenza
+          // ✨ Logo animato
           FadeTransition(
             opacity: _animation,
             child: ScaleTransition(
@@ -165,8 +166,8 @@ class LoginOrLocal extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 30),
-              
-              // 🌀 Uso offline senza login
+
+              // 🌀 Uso offline
               ElevatedButton.icon(
                 icon: const Icon(Icons.offline_bolt),
                 label: const Text("Usa senza registrazione"),
@@ -183,7 +184,7 @@ class LoginOrLocal extends StatelessWidget {
               ),
               const SizedBox(height: 15),
 
-              // 🔐 Accesso o registrazione Firebase
+              // 🔐 Login Firebase
               OutlinedButton.icon(
                 icon: const Icon(Icons.login),
                 label: const Text("Accedi o Registrati"),
