@@ -1,29 +1,31 @@
 import 'package:flutter/material.dart';
 
-/// 🎨 Tavolozza principale di ColorSlash
+/// 🎨 Tavolozza principale di ColorSlash (blu metallico 3D)
 class AppColors {
-  // 🌌 Colori base
+  // Palette principale (blu metallico)
   static const Color primary = Color(0xFF2979FF); // Blu brillante
   static const Color primaryLight = Color(0xFF82B1FF); // Blu chiaro
   static const Color primaryDark = Color(0xFF004C8C); // Blu profondo
 
   static const Color accent = Color(0xFF00E5FF); // Ciano metallico
-  static const Color secondary = Color(0xFF00BFA5); // Verde acqua futuristico
+  static const Color secondary = Color(0xFF00BFA5);
 
+  // Backgrounds
   static const Color background = Color(0xFF0D1117); // Nero grafite
   static const Color surface = Color(0xFF1C1F26); // Blu-grigio scuro
+  static const Color bgColor = background; // alias usato nello splash
 
-  // 🔹 Testo
+  // Testo
   static const Color textPrimary = Colors.white;
   static const Color textSecondary = Color(0xFFB0BEC5);
   static const Color textMuted = Color(0xFF78909C);
 
-  // ⚠️ Errori e stati
+  // Stati
   static const Color error = Color(0xFFFF5252);
   static const Color success = Color(0xFF00E676);
   static const Color warning = Color(0xFFFFD740);
 
-  // 🌈 Gradiente principale 3D (per bottoni, sfondi, splash)
+  // Gradients metallici
   static const LinearGradient metallicGradient = LinearGradient(
     colors: [
       Color(0xFF004C8C), // Blu profondo
@@ -34,7 +36,6 @@ class AppColors {
     end: Alignment.bottomRight,
   );
 
-  // 💠 Variante più leggera (per card o overlay)
   static const LinearGradient lightGradient = LinearGradient(
     colors: [
       Color(0xFF1565C0),
@@ -45,22 +46,22 @@ class AppColors {
     end: Alignment.bottomLeft,
   );
 
-  // ✨ Ombra metallica 3D
+  // Shadow helpers (metallic 3D look)
   static List<BoxShadow> metallicShadow = [
     BoxShadow(
-      color: primaryLight.withOpacity(0.4),
+      color: primaryLight.withOpacity(0.36),
       blurRadius: 12,
       spreadRadius: 1,
       offset: const Offset(2, 3),
     ),
     BoxShadow(
-      color: primaryDark.withOpacity(0.4),
+      color: primaryDark.withOpacity(0.32),
       blurRadius: 20,
       offset: const Offset(-3, -2),
     ),
   ];
 
-  // 🖍️ Colori disponibili per le note
+  // Colori rapidi per le note
   static const List<Color> noteColors = [
     Color(0xFF2979FF),
     Color(0xFF00E5FF),
