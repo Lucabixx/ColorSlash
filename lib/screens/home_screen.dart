@@ -18,15 +18,25 @@ class _HomeScreenState extends State<HomeScreen> {
   String? preferredType; // "note" or "list"
   bool _isSyncing = false;
   List<Map<String, dynamic>> _notes = [];
+  List<Map<String, dynamic>> _filteredNotes = [];
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadNotes();
     _autoSync();
+
+    _searchController.addListener(_filterNotes);
   }
 
-  /// 🔹 Carica le note dal file locale `notes.json`
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  /// 🔹 Carica le note locali
   Future<void> _loadNotes() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
@@ -38,16 +48,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
         setState(() {
           _notes = List<Map<String, dynamic>>.from(decoded);
+          _filteredNotes = _notes;
         });
       } else {
-        setState(() => _notes = []);
+        setState(() {
+          _notes = [];
+          _filteredNotes = [];
+        });
       }
     } catch (e) {
-      debugPrint("Errore nel caricamento note locali: $e");
+      debugPrint("Errore caricamento note: $e");
     }
   }
 
-  /// 🔹 Sincronizzazione automatica all’avvio
+  /// 🔹 Filtra note per testo cercato
+  void _filterNotes() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredNotes = _notes.where((note) {
+        final title = (note['title'] ?? '').toLowerCase();
+        final content = (note['content'] ?? '').toLowerCase();
+        return title.contains(query) || content.contains(query);
+      }).toList();
+    });
+  }
+
+  /// 🔹 Sincronizzazione automatica
   Future<void> _autoSync() async {
     final auth = context.read<AuthService>();
     setState(() => _isSyncing = true);
@@ -55,13 +81,13 @@ class _HomeScreenState extends State<HomeScreen> {
       await auth.syncWithCloud(context);
       await _loadNotes();
     } catch (e) {
-      debugPrint("Errore durante la sincronizzazione automatica: $e");
+      debugPrint("Errore sync automatica: $e");
     } finally {
       setState(() => _isSyncing = false);
     }
   }
 
-  /// 🔹 Crea nuova nota o lista
+  /// 🔹 Creazione nuova nota/lista
   void _onAddPressed() {
     if (rememberChoice == true && preferredType != null) {
       _openEditor(preferredType!);
@@ -127,7 +153,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
-    // 🔹 Ricarica le note se l’editor ha salvato qualcosa
     if (result == true) {
       await _loadNotes();
     }
@@ -171,6 +196,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+
       drawer: Drawer(
         child: ListView(
           children: [
@@ -185,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.sync),
-              title: const Text("Sincronizza adesso"),
+              title: const Text("Sincronizza ora"),
               onTap: () async {
                 setState(() => _isSyncing = true);
                 await auth.syncWithCloud(context);
@@ -206,47 +232,70 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
 
-      /// 🔹 Mostra lista note locali
       body: _isSyncing
           ? const Center(child: CircularProgressIndicator())
-          : _notes.isEmpty
-              ? const Center(
-                  child: Text(
-                    "Nessuna nota salvata.\nPremi + per crearne una!",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(8),
-                  itemCount: _notes.length,
-                  itemBuilder: (context, index) {
-                    final note = _notes[index];
-                    return Card(
-                      color: Colors.deepPurple.shade100,
-                      child: ListTile(
-                        title: Text(note['title'] ?? 'Senza titolo'),
-                        subtitle: Text(
-                          note['content'] ?? '',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => NoteEditorScreen(
-                                noteId: note['id'],
-                              ),
-                            ),
-                          ).then((value) async {
-                            if (value == true) await _loadNotes();
-                          });
-                        },
+          : Column(
+              children: [
+                // 🔍 Campo di ricerca
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: "Cerca per titolo o contenuto...",
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    );
-                  },
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                  ),
                 ),
+
+                Expanded(
+                  child: _filteredNotes.isEmpty
+                      ? const Center(
+                          child: Text(
+                            "Nessuna nota trovata.\nCrea una nuova nota o modifica la ricerca.",
+                            textAlign: TextAlign.center,
+                            style:
+                                TextStyle(color: Colors.white70, fontSize: 16),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(8),
+                          itemCount: _filteredNotes.length,
+                          itemBuilder: (context, index) {
+                            final note = _filteredNotes[index];
+                            return Card(
+                              color: Colors.deepPurple.shade100,
+                              child: ListTile(
+                                title: Text(note['title'] ?? 'Senza titolo'),
+                                subtitle: Text(
+                                  note['content'] ?? '',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => NoteEditorScreen(
+                                        noteId: note['id'],
+                                      ),
+                                    ),
+                                  ).then((value) async {
+                                    if (value == true) await _loadNotes();
+                                  });
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
 
       floatingActionButton: FloatingActionButton(
         onPressed: _onAddPressed,
