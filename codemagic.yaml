@@ -42,7 +42,7 @@ workflows:
             --dart-define=FLAVOR=production
       - name: Build iOS release
         script: |
-          flutter build ios --release --no-codesign
+          flutter build ios --release
 
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
@@ -58,6 +58,7 @@ workflows:
         notify:
           success: true
           failure: true
+
 
 
 
