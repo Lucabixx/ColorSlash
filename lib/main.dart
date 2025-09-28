@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+
 import 'services/auth_service.dart';
 import 'screens/splash_screen.dart';
-import 'utils/theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'utils/theme.dart';
+import 'utils/app_colors.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,7 +48,7 @@ class ColorSlashApp extends StatelessWidget {
   }
 }
 
-/// 🔹 Splash screen con animazione iniziale
+/// 🔹 Splash screen con animazione 3D + bagliore orbitante
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -64,24 +66,24 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
 
     _controller = AnimationController(
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 3),
       vsync: this,
-    );
+    )..repeat(reverse: true);
 
     _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
-    _controller.forward();
 
-    Future.delayed(const Duration(seconds: 3), _navigateNext);
+    Future.delayed(const Duration(seconds: 4), _navigateNext);
   }
 
   void _navigateNext() {
     final auth = Provider.of<AuthService>(context, listen: false);
     final user = auth.currentUser;
 
-    // 🔹 Se non loggato, permette uso locale o login
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => user == null ? const LoginOrLocal() : const HomeScreen()),
+      MaterialPageRoute(
+        builder: (_) => user == null ? const LoginOrLocal() : const HomeScreen(),
+      ),
     );
   }
 
@@ -95,18 +97,43 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Center(
-        child: FadeTransition(
-          opacity: _animation,
-          child: ScaleTransition(
-            scale: _animation,
-            child: Image.asset(
-              'assets/splash.png',
-              width: 160,
-              height: 160,
+      body: Stack(
+        alignment: Alignment.center,
+        children: [
+          // 🌌 Effetto bagliore orbitante
+          AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    colors: [
+                      AppColors.primaryLight.withOpacity(0.1 + _controller.value * 0.3),
+                      Colors.black,
+                    ],
+                    radius: 1.2,
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // ✨ Logo animato in scala + dissolvenza
+          FadeTransition(
+            opacity: _animation,
+            child: ScaleTransition(
+              scale: _animation,
+              child: Hero(
+                tag: 'splashLogo',
+                child: Image.asset(
+                  'assets/splash.png',
+                  width: 180,
+                  height: 180,
+                ),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -126,23 +153,25 @@ class LoginOrLocal extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.color_lens, size: 80, color: Colors.purpleAccent),
+              const Icon(Icons.color_lens, size: 80, color: AppColors.primaryLight),
               const SizedBox(height: 20),
               const Text(
                 "Benvenuto su ColorSlash!",
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: AppColors.textPrimary,
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 30),
+              
+              // 🌀 Uso offline senza login
               ElevatedButton.icon(
                 icon: const Icon(Icons.offline_bolt),
                 label: const Text("Usa senza registrazione"),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purpleAccent,
+                  backgroundColor: AppColors.primaryLight,
                   minimumSize: const Size(double.infinity, 50),
                 ),
                 onPressed: () {
@@ -153,12 +182,15 @@ class LoginOrLocal extends StatelessWidget {
                 },
               ),
               const SizedBox(height: 15),
+
+              // 🔐 Accesso o registrazione Firebase
               OutlinedButton.icon(
                 icon: const Icon(Icons.login),
                 label: const Text("Accedi o Registrati"),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
-                  side: const BorderSide(color: Colors.purpleAccent),
+                  side: const BorderSide(color: AppColors.primaryLight),
+                  foregroundColor: AppColors.textPrimary,
                 ),
                 onPressed: () {
                   Navigator.push(
