@@ -1,3 +1,4 @@
+import 'utils/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
@@ -19,7 +20,7 @@ class ColorSlashApp extends StatelessWidget {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'ColorSlash',
-        theme: ThemeData(
+        theme: AppTheme.darkTheme,
           brightness: Brightness.dark,
           primarySwatch: Colors.deepPurple,
           scaffoldBackgroundColor: Colors.black,
@@ -38,4 +39,5 @@ class ColorSlashApp extends StatelessWidget {
     );
   }
 }
+
 
