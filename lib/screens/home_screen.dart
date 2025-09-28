@@ -16,7 +16,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String search = "";
-  String filterType = "tutti"; // 🔹 filtro media
+  String filterType = "tutti";
 
   @override
   Widget build(BuildContext context) {
@@ -32,147 +32,132 @@ class _HomeScreenState extends State<HomeScreen> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text("ColorSlash"),
-        backgroundColor: AppColors.primaryDark,
-        actions: [
-          // 🔹 Galleria media
-          IconButton(
-            icon: const Icon(Icons.photo_library_outlined),
-            tooltip: "Galleria Media",
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const MediaGalleryScreen()),
-              );
-            },
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF001F3F), Color(0xFF004080), Color(0xFF0074D9)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-
-          // 🔹 Filtro per tipo
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.filter_alt_outlined),
-            onSelected: (val) => setState(() => filterType = val),
-            itemBuilder: (_) => [
-              const PopupMenuItem(value: "tutti", child: Text("Tutti")),
-              const PopupMenuItem(value: "note", child: Text("Solo Note")),
-              const PopupMenuItem(value: "list", child: Text("Solo Liste")),
-            ],
-          ),
-
-          // 🔹 Sincronizza
-          IconButton(
-            icon: const Icon(Icons.sync),
-            tooltip: "Sincronizza con Cloud",
-            onPressed: () => auth.syncWithCloud(context),
-          ),
-
-          // 🔹 Logout
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: "Esci",
-            onPressed: () async {
-              await auth.signOut();
-              if (context.mounted) {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (_) => false,
-                );
-              }
-            },
-          ),
-        ],
-      ),
-
-      // 🔹 Corpo
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
-              onChanged: (val) => setState(() => search = val),
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: "Cerca note o liste...",
-                hintStyle: const TextStyle(color: Colors.white54),
-                prefixIcon: const Icon(Icons.search, color: Colors.white70),
-                filled: true,
-                fillColor: AppColors.surface,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+        ),
+        child: Column(
+          children: [
+            AppBar(
+              title: const Text("ColorSlash"),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.photo_library_outlined),
+                  tooltip: "Galleria Media",
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const MediaGalleryScreen()),
+                    );
+                  },
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.filter_alt_outlined),
+                  onSelected: (val) => setState(() => filterType = val),
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: "tutti", child: Text("Tutti")),
+                    PopupMenuItem(value: "note", child: Text("Solo Note")),
+                    PopupMenuItem(value: "list", child: Text("Solo Liste")),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.sync),
+                  tooltip: "Sincronizza con Cloud",
+                  onPressed: () => auth.syncWithCloud(context),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.logout),
+                  tooltip: "Esci",
+                  onPressed: () async {
+                    await auth.signOut();
+                    if (context.mounted) {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        (_) => false,
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: TextField(
+                onChanged: (val) => setState(() => search = val),
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: "Cerca note o liste...",
+                  hintStyle: const TextStyle(color: Colors.white54),
+                  prefixIcon: const Icon(Icons.search, color: Colors.white70),
+                  filled: true,
+                  fillColor: AppColors.surface.withOpacity(0.5),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
             ),
-          ),
-
-          Expanded(
-            child: filteredNotes.isEmpty
-                ? const Center(
-                    child: Text(
-                      "Nessuna nota trovata",
-                      style: TextStyle(color: Colors.white54),
+            Expanded(
+              child: filteredNotes.isEmpty
+                  ? const Center(
+                      child: Text(
+                        "Nessuna nota trovata",
+                        style: TextStyle(color: Colors.white54),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(10),
+                      itemCount: filteredNotes.length,
+                      itemBuilder: (context, i) {
+                        final note = filteredNotes[i];
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 500),
+                          curve: Curves.easeOut,
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          decoration: BoxDecoration(
+                            color: note.color.withOpacity(0.25),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: AppColors.metallicShadow,
+                          ),
+                          child: ListTile(
+                            title: Text(
+                              note.title,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            subtitle: Text(
+                              note.content,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.white70),
+                            ),
+                            onTap: () => _addOrEditNote(note.toJson()),
+                          ),
+                        );
+                      },
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(10),
-                    itemCount: filteredNotes.length,
-                    itemBuilder: (context, i) {
-                      final note = filteredNotes[i];
-                      return Card(
-                        color: note.color.withOpacity(0.25),
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        child: ListTile(
-                          title: Text(
-                            note.title,
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                          subtitle: Text(
-                            note.content,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Colors.white70),
-                          ),
-                          onTap: () => _addOrEditNote(note.toJson()),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
-
-      // 🔹 FAB con ombre 3D
       floatingActionButton: Container(
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primaryLight.withOpacity(0.8),
-              blurRadius: 20,
-              spreadRadius: 4,
-            ),
-            BoxShadow(
-              color: AppColors.primaryDark.withOpacity(0.6),
-              blurRadius: 40,
-              spreadRadius: 10,
-            ),
-          ],
+          boxShadow: AppColors.metallicShadow,
         ),
         child: FloatingActionButton(
           backgroundColor: AppColors.primary,
           elevation: 14,
           child: ShaderMask(
-            shaderCallback: (bounds) => const LinearGradient(
-              colors: [
-                AppColors.primaryLight,
-                AppColors.primary,
-                AppColors.primaryDark,
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ).createShader(bounds),
+            shaderCallback: (bounds) => AppColors.metallicGradient.createShader(bounds),
             child: const Icon(Icons.add, size: 34, color: Colors.white),
           ),
           onPressed: () {
@@ -189,7 +174,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       ListTile(
-                        leading: const Icon(Icons.note_add, color: AppColors.primaryLight),
+                        leading: const Icon(Icons.note_add,
+                            color: AppColors.primaryLight),
                         title: const Text('Nuova Nota'),
                         onTap: () {
                           Navigator.pop(ctx);
@@ -197,14 +183,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       ),
                       ListTile(
-                        leading: const Icon(Icons.checklist, color: AppColors.primaryLight),
+                        leading: const Icon(Icons.checklist,
+                            color: AppColors.primaryLight),
                         title: const Text('Nuova Lista'),
                         onTap: () {
                           Navigator.pop(ctx);
                           _addOrEditNote({'type': 'list'});
                         },
                       ),
-                      const SizedBox(height: 10),
                     ],
                   ),
                 );
@@ -216,9 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// 🔹 Crea o modifica nota
   Future<void> _addOrEditNote(Map<String, dynamic> noteData) async {
-    // Apri l’editor (usa il tuo NoteEditorScreen)
-    // Navigator.push(...);
+    // TODO: collegare al tuo NoteEditorScreen
   }
 }
