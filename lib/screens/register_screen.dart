@@ -1,3 +1,4 @@
+// lib/screens/register_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:colorslash/services/auth_service.dart';
@@ -35,9 +36,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = false);
 
     if (user != null) {
+      // Abbiamo creato l'utente ma chiediamo di verificare l'email prima del login
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                "Registrazione completata: controlla la tua email e confermala prima di accedere.")),
+      );
+      // Torniamo alla schermata di login
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -93,6 +101,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.deepPurple,
                     minimumSize: const Size(double.infinity, 50),
+                    shape: const StadiumBorder(),
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
