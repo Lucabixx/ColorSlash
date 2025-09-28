@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
-
 import '../services/auth_service.dart';
 import 'note_editor_screen.dart';
 
@@ -59,17 +58,17 @@ class _HomeScreenState extends State<HomeScreen> {
   void _applyFilters() {
     List<Map<String, dynamic>> result = List.from(_notes);
 
-    // Filtra per tipo
+    // 🔹 Filtro tipo
     if (_filterType != 'all') {
       result = result.where((n) => n['type'] == _filterType).toList();
     }
 
-    // Filtra per colore
+    // 🔹 Filtro colore
     if (_filterColor != null) {
       result = result.where((n) => n['color'] == _filterColor!.value).toList();
     }
 
-    // Ricerca
+    // 🔹 Ricerca testo
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
       result = result.where((n) {
@@ -79,14 +78,16 @@ class _HomeScreenState extends State<HomeScreen> {
       }).toList();
     }
 
-    // Ordinamento
+    // 🔹 Ordinamento
     result.sort((a, b) {
       dynamic vA = a[_sortKey];
       dynamic vB = b[_sortKey];
+
       if (_sortKey == 'date') {
         vA = DateTime.tryParse(vA ?? '') ?? DateTime(0);
         vB = DateTime.tryParse(vB ?? '') ?? DateTime(0);
       }
+
       final cmp = vA.toString().compareTo(vB.toString());
       return _ascending ? cmp : -cmp;
     });
@@ -153,10 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, selected),
-              child: const Text('OK'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(ctx, selected), child: const Text('OK')),
           ],
         );
       },
@@ -175,6 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() => _syncing = true);
       await auth.syncWithCloud(context);
       await _loadNotes();
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Sincronizzazione completata ✅')),
       );
@@ -198,24 +197,25 @@ class _HomeScreenState extends State<HomeScreen> {
     _applyFilters();
   }
 
+  /// 🔹 Evidenzia le parole cercate nel titolo/contenuto
   Widget _highlightText(String text, String query) {
     if (query.isEmpty) return Text(text);
 
     final lowerText = text.toLowerCase();
     final lowerQuery = query.toLowerCase();
-    final matches = <TextSpan>[];
+    final spans = <TextSpan>[];
     int start = 0;
 
     while (true) {
       final index = lowerText.indexOf(lowerQuery, start);
       if (index == -1) {
-        matches.add(TextSpan(text: text.substring(start)));
+        spans.add(TextSpan(text: text.substring(start)));
         break;
       }
       if (index > start) {
-        matches.add(TextSpan(text: text.substring(start, index)));
+        spans.add(TextSpan(text: text.substring(start, index)));
       }
-      matches.add(TextSpan(
+      spans.add(TextSpan(
         text: text.substring(index, index + query.length),
         style: const TextStyle(
           backgroundColor: Colors.yellow,
@@ -226,10 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return RichText(
-      text: TextSpan(
-        style: const TextStyle(color: Colors.white),
-        children: matches,
-      ),
+      text: TextSpan(style: const TextStyle(color: Colors.white), children: spans),
     );
   }
 
@@ -246,22 +243,12 @@ class _HomeScreenState extends State<HomeScreen> {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 12),
               child: Center(
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+                child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
               ),
             ),
-          IconButton(
-            icon: const Icon(Icons.cloud_sync),
-            onPressed: _syncing ? null : _syncWithCloud,
-          ),
-          IconButton(
-            icon: const Icon(Icons.filter_alt_off),
-            onPressed: _resetFilters,
-          ),
-          PopupMenuButton<String>(
+          IconButton(icon: const Icon(Icons.cloud_sync), onPressed: _syncing ? null : _syncWithCloud),
+          IconButton(icon: const Icon(Icons.filter_alt_off), onPressed: _resetFilters),
+          PopupMenuButton(
             onSelected: (val) {
               if (val == 'note' || val == 'list' || val == 'all') {
                 _filterType = val;
@@ -272,17 +259,17 @@ class _HomeScreenState extends State<HomeScreen> {
               }
               _applyFilters();
             },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'note', child: Text('Solo Note')),
-              PopupMenuItem(value: 'list', child: Text('Solo Liste')),
-              PopupMenuItem(value: 'all', child: Text('Tutti')),
-              PopupMenuDivider(),
-              PopupMenuItem(value: 'title', child: Text('Ordina per Titolo')),
-              PopupMenuItem(value: 'date', child: Text('Ordina per Data')),
-              PopupMenuItem(value: 'color', child: Text('Ordina per Colore')),
-              PopupMenuDivider(),
-              PopupMenuItem(value: 'asc', child: Text('Crescente')),
-              PopupMenuItem(value: 'desc', child: Text('Decrescente')),
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'note', child: Text('Solo Note')),
+              const PopupMenuItem(value: 'list', child: Text('Solo Liste')),
+              const PopupMenuItem(value: 'all', child: Text('Tutti')),
+              const PopupMenuDivider(),
+              const PopupMenuItem(value: 'title', child: Text('Ordina per Titolo')),
+              const PopupMenuItem(value: 'date', child: Text('Ordina per Data')),
+              const PopupMenuItem(value: 'color', child: Text('Ordina per Colore')),
+              const PopupMenuDivider(),
+              const PopupMenuItem(value: 'asc', child: Text('Crescente')),
+              const PopupMenuItem(value: 'desc', child: Text('Decrescente')),
             ],
           ),
         ],
@@ -306,11 +293,9 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: Row(
               children: [
-                Text('Note: $noteCount',
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text('Note: $noteCount', style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(width: 16),
-                Text('Liste: $listCount',
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text('Liste: $listCount', style: const TextStyle(fontWeight: FontWeight.bold)),
               ],
             ),
           ),
@@ -341,17 +326,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           leading: Container(
                             width: 12,
                             height: 12,
-                            decoration: BoxDecoration(
-                              color: color,
-                              shape: BoxShape.circle,
-                            ),
+                            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
                           ),
                           title: _highlightText(title, _searchQuery),
                           subtitle: _highlightText(content, _searchQuery),
                           trailing: Icon(
-                            n['type'] == 'note'
-                                ? Icons.sticky_note_2
-                                : Icons.list_alt,
+                            n['type'] == 'note' ? Icons.sticky_note_2 : Icons.list_alt,
                             color: Colors.white70,
                           ),
                         ),
@@ -361,12 +341,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      floatingActionButton: PopupMenuButton<String>(
+      floatingActionButton: PopupMenuButton(
         icon: const Icon(Icons.add),
         onSelected: (v) => _addOrEditNote({'type': v}),
-        itemBuilder: (_) => const [
-          PopupMenuItem(value: 'note', child: Text('Nuova Nota')),
-          PopupMenuItem(value: 'list', child: Text('Nuova Lista')),
+        itemBuilder: (_) => [
+          const PopupMenuItem(value: 'note', child: Text('Nuova Nota')),
+          const PopupMenuItem(value: 'list', child: Text('Nuova Lista')),
         ],
       ),
     );
