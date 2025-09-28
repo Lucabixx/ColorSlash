@@ -1,57 +1,57 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:path_provider/path_provider.dart';
 
-class AuthService {
+class AuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   User? get currentUser => _auth.currentUser;
 
-  // 🔹 Login con email e password
-  Future<User?> signInWithEmail(String email, String password) async {
+  // 🔹 Login con email e password -> ritorna true se OK
+  Future<bool> signInWithEmail(String email, String password) async {
     try {
       final cred = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      return cred.user;
+      return cred.user != null;
     } catch (e) {
       debugPrint("Errore login email: $e");
-      return null;
+      return false;
     }
   }
 
-  // 🔹 Registrazione con email e password
-  Future<User?> registerWithEmail(String email, String password) async {
+  // 🔹 Registrazione con email e password -> ritorna true se OK
+  Future<bool> registerWithEmail(String email, String password) async {
     try {
       final cred = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      return cred.user;
+      return cred.user != null;
     } catch (e) {
       debugPrint("Errore registrazione: $e");
-      return null;
+      return false;
     }
   }
 
-  // 🔹 Login con Google
+  // 🔹 Login con Google -> ritorna User? (null se annullato/errore)
   Future<User?> signInWithGoogle() async {
     try {
       final googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) return null;
-
       final googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
         accessToken: googleAuth.accessToken,
       );
-
       final result = await _auth.signInWithCredential(credential);
       return result.user;
     } catch (e) {
@@ -63,7 +63,10 @@ class AuthService {
   // 🔹 Logout
   Future<void> signOut() async {
     await _auth.signOut();
-    await GoogleSignIn().signOut();
+    try {
+      await GoogleSignIn().signOut();
+    } catch (_) {}
+    notifyListeners();
   }
 
   // 🔹 Percorso del file locale
@@ -75,7 +78,7 @@ class AuthService {
   // 🔹 Carica note locali
   Future<List<Map<String, dynamic>>> _loadLocalNotes() async {
     final file = await _getLocalFile();
-    if (!await file.exists()) return [];
+    if (!await file.exists()) return <Map<String, dynamic>>[];
     final content = await file.readAsString();
     final List data = jsonDecode(content);
     return data.cast<Map<String, dynamic>>();
@@ -87,60 +90,65 @@ class AuthService {
     await file.writeAsString(jsonEncode(notes));
   }
 
-  // 🔹 Sincronizzazione locale ↔ cloud
+  // 🔹 Sincronizzazione locale ↔ cloud (bidirezionale)
+  // Richiede che l'utente sia loggato. Usa campi 'id' e 'updatedAt' (o 'lastModified') come timestamp.
   Future<void> syncWithCloud(BuildContext context) async {
     final user = _auth.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Nessun utente loggato")),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Nessun utente loggato")),
+        );
+      }
       return;
     }
 
     try {
-      final localNotes = await _loadLocalNotes();
+      final localNotes = await _loadLocalNotes(); // List<Map<String,dynamic>>
+      final cloudSnap = await _db.collection('users').doc(user.uid).collection('notes').get();
+      final cloudNotes = cloudSnap.docs.map((d) {
+        final m = Map<String, dynamic>.from(d.data());
+        m['id'] = d.id;
+        return m;
+      }).toList();
 
-      final cloudSnap = await _db
-          .collection('users')
-          .doc(user.uid)
-          .collection('notes')
-          .get();
+      // Mappe per ricerca rapida
+      final localMap = {for (var n in localNotes) n['id'] as String: n};
+      final cloudMap = {for (var n in cloudNotes) n['id'] as String: n};
 
-      final cloudNotes =
-          cloudSnap.docs.map((d) => d.data()..['id'] = d.id).toList();
+      // Unione chiavi
+      final allIds = {...localMap.keys, ...cloudMap.keys};
 
-      // Mappa ID → Nota
-      final localMap = {for (var n in localNotes) n['id']: n};
-      final cloudMap = {for (var n in cloudNotes) n['id']: n};
-
-      // 🔁 Sincronizzazione bidirezionale
-      for (var id in {...localMap.keys, ...cloudMap.keys}) {
+      for (final id in allIds) {
         final local = localMap[id];
         final cloud = cloudMap[id];
 
         if (local == null && cloud != null) {
-          // Esiste solo nel cloud → aggiungi in locale
+          // solo cloud -> aggiungi localmente
           localNotes.add(cloud);
         } else if (cloud == null && local != null) {
-          // Esiste solo in locale → aggiungi nel cloud
+          // solo local -> salva su cloud
           await _db
               .collection('users')
               .doc(user.uid)
               .collection('notes')
-              .doc(local['id'])
-              .set(local);
+              .doc(local['id'] as String)
+              .set(Map<String, dynamic>.from(local));
         } else if (local != null && cloud != null) {
-          // Esistono entrambi → confronta timestamp
-          final localTime = local['updatedAt'] ?? 0;
-          final cloudTime = cloud['updatedAt'] ?? 0;
-          if (localTime > cloudTime) {
+          // entrambi: confronta timestamp (usa 'updatedAt' o 'lastModified')
+          final localTime = _parseTimestamp(local['updatedAt'] ?? local['lastModified']);
+          final cloudTime = _parseTimestamp(cloud['updatedAt'] ?? cloud['lastModified']);
+
+          if (localTime.isAfter(cloudTime)) {
+            // local più recente -> push cloud
             await _db
                 .collection('users')
                 .doc(user.uid)
                 .collection('notes')
-                .doc(local['id'])
-                .set(local);
-          } else if (cloudTime > localTime) {
+                .doc(local['id'] as String)
+                .set(Map<String, dynamic>.from(local));
+          } else if (cloudTime.isAfter(localTime)) {
+            // cloud più recente -> sostituisci in locale
             final index = localNotes.indexWhere((n) => n['id'] == id);
             if (index != -1) localNotes[index] = cloud;
           }
@@ -149,14 +157,31 @@ class AuthService {
 
       await _saveLocalNotes(localNotes);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Sincronizzazione completata ✅")),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Sincronizzazione completata ✅")),
+        );
+      }
     } catch (e) {
       debugPrint("Errore durante la sincronizzazione: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Errore sincronizzazione: $e")),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Errore sincronizzazione: $e")),
+        );
+      }
     }
+  }
+
+  DateTime _parseTimestamp(dynamic t) {
+    if (t == null) return DateTime.fromMillisecondsSinceEpoch(0);
+    if (t is int) return DateTime.fromMillisecondsSinceEpoch(t);
+    if (t is String) {
+      try {
+        return DateTime.parse(t);
+      } catch (_) {
+        return DateTime.fromMillisecondsSinceEpoch(0);
+      }
+    }
+    return DateTime.fromMillisecondsSinceEpoch(0);
   }
 }
