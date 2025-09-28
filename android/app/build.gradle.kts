@@ -87,9 +87,13 @@ dependencies {
     // Flutter / Kotlin / Multidex
     implementation("androidx.multidex:multidex:2.0.1")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.0.21")
-
-    // Firebase (Crashlytics + Analytics)
     implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-crashlytics")
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-storage-ktx")
 }
+apply(plugin = "com.google.gms.google-services")
+
+
