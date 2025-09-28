@@ -5,7 +5,6 @@ import 'note_editor_screen.dart';
 
 class NoteListScreen extends StatefulWidget {
   const NoteListScreen({super.key});
-
   @override
   State<NoteListScreen> createState() => _NoteListScreenState();
 }
@@ -19,29 +18,23 @@ class _NoteListScreenState extends State<NoteListScreen> {
     final lowerQuery = query.toLowerCase();
     final spans = <TextSpan>[];
     int start = 0;
-
     while (true) {
-      final index = lowerText.indexOf(lowerQuery, start);
-      if (index == -1) {
+      final idx = lowerText.indexOf(lowerQuery, start);
+      if (idx == -1) {
         spans.add(TextSpan(text: text.substring(start)));
         break;
       }
-      if (index > start) {
-        spans.add(TextSpan(text: text.substring(start, index)));
-      }
+      if (idx > start) spans.add(TextSpan(text: text.substring(start, idx)));
       spans.add(TextSpan(
-        text: text.substring(index, index + query.length),
+        text: text.substring(idx, idx + query.length),
         style: const TextStyle(
           backgroundColor: Colors.yellow,
           fontWeight: FontWeight.bold,
         ),
       ));
-      start = index + query.length;
+      start = idx + query.length;
     }
-
-    return RichText(
-      text: TextSpan(style: const TextStyle(color: Colors.white), children: spans),
-    );
+    return RichText(text: TextSpan(style: const TextStyle(color: Colors.white), children: spans));
   }
 
   @override
@@ -55,15 +48,6 @@ class _NoteListScreenState extends State<NoteListScreen> {
     }).toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Le tue note"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.cloud_sync),
-            onPressed: () => noteService.syncNotes(context),
-          ),
-        ],
-      ),
       body: Column(
         children: [
           Padding(
@@ -84,23 +68,27 @@ class _NoteListScreenState extends State<NoteListScreen> {
                     itemBuilder: (context, i) {
                       final n = notes[i];
                       return ListTile(
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => NoteEditorScreen(
-                              noteId: n['id'],
-                              type: n['type'] ?? 'note',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => NoteEditorScreen(
+                                noteId: n['id'],
+                                type: n['type'] ?? 'note',
+                              ),
                             ),
-                          ),
-                        ),
-                        title: _highlightText(n['title'] ?? '', _searchQuery),
-                        subtitle: _highlightText(n['content'] ?? '', _searchQuery),
+                          );
+                        },
                         leading: CircleAvatar(
                           backgroundColor: Color(n['color'] ?? Colors.white.value),
                         ),
+                        title: _highlightText(n['title'] ?? '', _searchQuery),
+                        subtitle: _highlightText(n['content'] ?? '', _searchQuery),
                         trailing: IconButton(
                           icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => noteService.delete(n['id']),
+                          onPressed: () {
+                            noteService.delete(n['id']);
+                          },
                         ),
                       );
                     },
@@ -119,9 +107,9 @@ class _NoteListScreenState extends State<NoteListScreen> {
             ),
           );
         },
-        itemBuilder: (_) => [
-          const PopupMenuItem(value: 'note', child: Text('Nuova Nota')),
-          const PopupMenuItem(value: 'list', child: Text('Nuova Lista')),
+        itemBuilder: (_) => const [
+          PopupMenuItem(value: 'note', child: Text("Nuova Nota")),
+          PopupMenuItem(value: 'list', child: Text("Nuova Lista")),
         ],
       ),
     );
