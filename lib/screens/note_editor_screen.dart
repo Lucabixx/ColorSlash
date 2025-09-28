@@ -230,29 +230,50 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         ),
       ),
       floatingActionButton: Wrap(
-        spacing: 10,
-        direction: Axis.horizontal,
-        children: [
-          FloatingActionButton(
-            heroTag: 'photo',
-            onPressed: _pickImage,
-            backgroundColor: AppColors.primary,
-            child: const Icon(Icons.photo),
+  spacing: 10,
+  direction: Axis.horizontal,
+  children: [
+    FloatingActionButton(
+      heroTag: 'photo',
+      onPressed: _pickImage,
+      backgroundColor: AppColors.primary,
+      child: const Icon(Icons.photo),
+    ),
+    FloatingActionButton(
+      heroTag: 'video',
+      onPressed: _pickVideo,
+      backgroundColor: AppColors.primaryDark,
+      child: const Icon(Icons.videocam),
+    ),
+    FloatingActionButton(
+      heroTag: 'mic',
+      onPressed: _toggleRecording,
+      backgroundColor: _isRecording ? Colors.redAccent : AppColors.accent,
+      child: Icon(_isRecording ? Icons.stop : Icons.mic),
+    ),
+    FloatingActionButton(
+      heroTag: 'draw',
+      onPressed: () async {
+        final img = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SketchPad(
+              onSave: (data) async {
+                final dir = await getTemporaryDirectory();
+                final filePath = "${dir.path}/${DateTime.now().millisecondsSinceEpoch}.png";
+                final file = File(filePath);
+                await file.writeAsBytes(data);
+                setState(() => _media.add({'type': 'image', 'path': file.path}));
+              },
+            ),
           ),
-          FloatingActionButton(
-            heroTag: 'video',
-            onPressed: _pickVideo,
-            backgroundColor: AppColors.primaryDark,
-            child: const Icon(Icons.videocam),
-          ),
-          FloatingActionButton(
-            heroTag: 'mic',
-            onPressed: _toggleRecording,
-            backgroundColor: _isRecording ? Colors.redAccent : AppColors.accent,
-            child: Icon(_isRecording ? Icons.stop : Icons.mic),
-          ),
-        ],
-      ),
+        );
+      },
+      backgroundColor: Colors.blueAccent,
+      child: const Icon(Icons.brush),
+    ),
+  ],
+),  
     );
   }
 }
