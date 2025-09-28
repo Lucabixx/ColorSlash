@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
-import 'register_screen.dart';
+import '../utils/app_colors.dart';
 import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,142 +14,126 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final emailCtrl = TextEditingController();
   final passCtrl = TextEditingController();
-
-  bool loading = false;
-
-  Future<void> _login() async {
-    final auth = Provider.of<AuthService>(context, listen: false);
-    setState(() => loading = true);
-
-    final user = await auth.signInWithEmail(
-      emailCtrl.text.trim(),
-      passCtrl.text.trim(),
-    );
-
-    setState(() => loading = false);
-
-    if (user != null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Accesso fallito. Controlla credenziali.")),
-      );
-    }
-  }
-
-  Future<void> _loginGoogle() async {
-    final auth = Provider.of<AuthService>(context, listen: false);
-    final user = await auth.signInWithGoogle();
-    if (user != null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Accesso Google fallito.")),
-      );
-    }
-  }
-
-  Future<void> _loginAnon() async {
-    final auth = Provider.of<AuthService>(context, listen: false);
-    final user = await auth.signInAnonymously();
-    if (user != null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Accesso locale fallito.")),
-      );
-    }
-  }
+  bool _loading = false;
 
   @override
   Widget build(BuildContext context) {
+    final auth = Provider.of<AuthService>(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF1E1E2C),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Center(
-          child: SingleChildScrollView(
+      backgroundColor: AppColors.background,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              gradient: AppColors.metallicGradient,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: AppColors.metallicShadow,
+            ),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.lock, size: 80, color: Colors.deepPurpleAccent),
-                const SizedBox(height: 16),
-                const Text(
-                  "Benvenuto in Color Slash",
-                  style: TextStyle(fontSize: 24, color: Colors.white),
-                ),
-                const SizedBox(height: 32),
-                TextField(
-                  controller: emailCtrl,
-                  decoration: const InputDecoration(
-                    hintText: "Email",
-                    prefixIcon: Icon(Icons.email),
-                    filled: true,
-                    fillColor: Colors.white10,
+                ShaderMask(
+                  shaderCallback: (bounds) =>
+                      AppColors.metallicGradient.createShader(bounds),
+                  child: const Text(
+                    "ColorSlash",
+                    style: TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 1.5,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: emailCtrl,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: InputDecoration(
+                    hintText: "Email",
+                    hintStyle: const TextStyle(color: AppColors.textSecondary),
+                    filled: true,
+                    fillColor: AppColors.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 TextField(
                   controller: passCtrl,
                   obscureText: true,
-                  decoration: const InputDecoration(
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: InputDecoration(
                     hintText: "Password",
-                    prefixIcon: Icon(Icons.lock_outline),
+                    hintStyle: const TextStyle(color: AppColors.textSecondary),
                     filled: true,
-                    fillColor: Colors.white10,
+                    fillColor: AppColors.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
+                  onPressed: _loading
+                      ? null
+                      : () async {
+                          setState(() => _loading = true);
+                          final ok = await auth.signInWithEmail(
+                            emailCtrl.text.trim(),
+                            passCtrl.text.trim(),
+                          );
+                          setState(() => _loading = false);
+                          if (ok && mounted) {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (_) => const HomeScreen()),
+                            );
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurpleAccent,
-                    minimumSize: const Size(double.infinity, 50),
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 6,
                   ),
-                  onPressed: loading ? null : _login,
-                  child: loading
+                  child: _loading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text("Accedi"),
+                      : const Text(
+                          "Accedi",
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 20),
                 OutlinedButton.icon(
-                  icon: const Icon(Icons.login, color: Colors.white),
+                  onPressed: () => auth.signInWithGoogle(context),
+                  icon: const Icon(Icons.account_circle, color: Colors.white),
                   label: const Text(
                     "Accedi con Google",
                     style: TextStyle(color: Colors.white),
                   ),
-                  onPressed: _loginGoogle,
                   style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.primaryLight),
                     minimumSize: const Size(double.infinity, 50),
-                    side: const BorderSide(color: Colors.white24),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 TextButton(
-                  onPressed: _loginAnon,
-                  child: const Text(
-                    "Prova senza account",
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                    );
-                  },
+                  onPressed: () => auth.registerWithEmail(context),
                   child: const Text(
                     "Non hai un account? Registrati",
-                    style: TextStyle(color: Colors.white60),
+                    style: TextStyle(color: AppColors.textSecondary),
                   ),
                 ),
               ],
