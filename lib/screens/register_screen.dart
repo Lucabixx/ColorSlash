@@ -1,13 +1,10 @@
-// lib/screens/register_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:colorslash/services/auth_service.dart';
-import 'package:colorslash/screens/home_screen.dart';
 import 'package:colorslash/screens/login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
-
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
@@ -23,7 +20,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
-
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Inserisci email e password")),
@@ -36,20 +32,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = false);
 
     if (user != null) {
-      // Abbiamo creato l'utente ma chiediamo di verificare l'email prima del login
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text(
-                "Registrazione completata: controlla la tua email e confermala prima di accedere.")),
+        const SnackBar(content: Text("Registrazione riuscita, verifica la tua email.")),
       );
-      // Torniamo alla schermata di login
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const LoginScreen()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Registrazione non riuscita")),
+        const SnackBar(content: Text("Registrazione fallita")),
       );
     }
   }
@@ -66,13 +58,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               children: [
                 const Icon(Icons.person_add, size: 80, color: Colors.deepPurple),
                 const SizedBox(height: 20),
-                const Text(
-                  "Crea un account",
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
+                const Text("Crea un account",
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 30),
-
-                // Email
                 TextField(
                   controller: _emailController,
                   decoration: const InputDecoration(
@@ -82,8 +70,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Password
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
@@ -94,25 +80,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 30),
-
-                // Bottone Registrati
                 ElevatedButton(
                   onPressed: _isLoading ? null : _register,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.deepPurple,
                     minimumSize: const Size(double.infinity, 50),
-                    shape: const StadiumBorder(),
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          "Registrati",
-                          style: TextStyle(fontSize: 18, color: Colors.white),
-                        ),
+                      : const Text("Registrati", style: TextStyle(fontSize: 18)),
                 ),
                 const SizedBox(height: 15),
-
-                // Vai al Login
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -121,8 +99,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       onPressed: () {
                         Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(
-                              builder: (_) => const LoginScreen()),
+                          MaterialPageRoute(builder: (_) => const LoginScreen()),
                         );
                       },
                       child: const Text("Accedi"),
