@@ -13,6 +13,27 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool? rememberChoice;
   String? preferredType; // "note" or "list"
+  bool _isSyncing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _autoSync();
+  }
+
+  /// 🔹 Avvia la sincronizzazione automatica all’apertura
+  Future<void> _autoSync() async {
+    final auth = context.read<AuthService>();
+
+    setState(() => _isSyncing = true);
+    try {
+      await auth.syncWithCloud(context);
+    } catch (e) {
+      debugPrint("Errore durante la sincronizzazione automatica: $e");
+    } finally {
+      setState(() => _isSyncing = false);
+    }
+  }
 
   void _onAddPressed() {
     if (rememberChoice == true && preferredType != null) {
@@ -72,7 +93,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openEditor(String type) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => NoteEditorScreen(noteId: UniqueKey().toString())));
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NoteEditorScreen(noteId: UniqueKey().toString()),
+      ),
+    );
   }
 
   @override
@@ -83,13 +109,32 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text("ColorSlash - BETA1"),
         actions: [
+          if (_isSyncing)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: Center(
+                child: SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.info_outline),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoScreen())),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const InfoScreen()),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.cloud_sync),
-            onPressed: () => auth.syncWithCloud(context),
+            tooltip: "Sincronizza manualmente",
+            onPressed: () async {
+              setState(() => _isSyncing = true);
+              await auth.syncWithCloud(context);
+              setState(() => _isSyncing = false);
+            },
           ),
         ],
       ),
@@ -98,13 +143,20 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             const DrawerHeader(
               decoration: BoxDecoration(color: Colors.blueAccent),
-              child: Center(child: Text("Progettato da Luca Bixx", style: TextStyle(color: Colors.white))),
+              child: Center(
+                child: Text(
+                  "Progettato da Luca Bixx",
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ),
             ),
             ListTile(
               leading: const Icon(Icons.sync),
               title: const Text("Sincronizza adesso"),
-              onTap: () {
-                auth.syncWithCloud(context);
+              onTap: () async {
+                setState(() => _isSyncing = true);
+                await auth.syncWithCloud(context);
+                setState(() => _isSyncing = false);
                 Navigator.pop(context);
               },
             ),
@@ -119,12 +171,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      body: const Center(
-        child: Text(
-          "Premi + per creare una nota o una lista multimediale",
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white70),
-        ),
+      body: Center(
+        child: _isSyncing
+            ? const CircularProgressIndicator()
+            : const Text(
+                "Premi + per creare una nota o una lista multimediale",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70),
+              ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _onAddPressed,
