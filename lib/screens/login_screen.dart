@@ -1,4 +1,3 @@
-// lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:colorslash/services/auth_service.dart';
@@ -7,7 +6,6 @@ import 'package:colorslash/screens/register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -23,7 +21,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
-
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Inserisci email e password")),
@@ -36,17 +33,16 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (user != null) {
-      // login riuscito
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
     } else {
-      // se user è null può essere credenziali sbagliate oppure mail non verificata.
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              "Login non riuscito. Se non hai verificato l'email, controlla la tua posta (ti è stata inviata una mail di verifica)."),
+            "Login fallito. Se non hai verificato la tua email, controlla la posta (ti è stata inviata una mail di verifica).",
+          ),
         ),
       );
     }
@@ -57,7 +53,6 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     final user = await auth.signInWithGoogle();
-
     setState(() => _isLoading = false);
 
     if (user != null) {
@@ -74,7 +69,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // layout semplice e leggibile
     return Scaffold(
       backgroundColor: Colors.deepPurple.shade50,
       body: Center(
@@ -87,12 +81,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 const Icon(Icons.color_lens, size: 80, color: Colors.deepPurple),
                 const SizedBox(height: 20),
                 const Text(
-                  "Benvenuto su ColorSlash",
+                  "ColorSlash",
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 30),
-
-                // Email
                 TextField(
                   controller: _emailController,
                   decoration: const InputDecoration(
@@ -102,8 +94,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Password
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
@@ -114,37 +104,24 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 30),
-
-                // Bottone Login
                 ElevatedButton(
                   onPressed: _isLoading ? null : _loginWithEmail,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.deepPurple,
                     minimumSize: const Size(double.infinity, 50),
-                    shape: const StadiumBorder(),
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          "Accedi",
-                          style: TextStyle(fontSize: 18, color: Colors.white),
-                        ),
+                      : const Text("Accedi", style: TextStyle(fontSize: 18)),
                 ),
                 const SizedBox(height: 15),
-
-                // Login con Google
                 OutlinedButton.icon(
                   onPressed: _isLoading ? null : _loginWithGoogle,
                   icon: const Icon(Icons.login),
                   label: const Text("Accedi con Google"),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: const StadiumBorder(),
-                  ),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
                 ),
                 const SizedBox(height: 20),
-
-                // Naviga a Registrazione
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -153,8 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                              builder: (_) => const RegisterScreen()),
+                          MaterialPageRoute(builder: (_) => const RegisterScreen()),
                         );
                       },
                       child: const Text("Registrati"),
