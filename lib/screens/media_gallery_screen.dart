@@ -112,9 +112,17 @@ class _MediaGalleryScreenState extends State<MediaGalleryScreen> {
                       }
 
                       return GestureDetector(
-                        onTap: () {
-                          // 🔹 Qui potrai aprire il dettaglio o il visualizzatore media
-                        },
+                     onTap: () {
+       Navigator.push(
+       context,
+       MaterialPageRoute(
+       builder: (_) => MediaViewerScreen(
+        mediaList: note.media!,
+        initialIndex: 0,
+      ),
+    ),
+  );
+},
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
                           decoration: BoxDecoration(
