@@ -35,15 +35,13 @@ class ColorSlashApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
-        ChangeNotifierProvider(create: (_) => NoteService()..loadLocalNotes()),
+        // ✅ Passiamo il contesto globale al NoteService
+        ChangeNotifierProvider(
+          create: (_) => NoteService(appContext: GlobalContext.context)..loadLocalNotes(),
+        ),
       ],
       child: const LifecycleWatcher(
-        child: MaterialApp(
-          title: "ColorSlash",
-          debugShowCheckedModeBanner: false,
-          home: SplashScreen(),
-          // navigatorKey viene impostato nel widget qui sotto
-        ),
+        child: SplashScreen(),
       ),
     );
   }
