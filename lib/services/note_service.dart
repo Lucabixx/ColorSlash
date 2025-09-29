@@ -15,7 +15,8 @@ class NoteService extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Connectivity _connectivity = Connectivity();
 
-  Stream<List<ConnectivityResult>>? _connectivityStream;
+  /// ✅ Stream corretto (usa ConnectivityResult singolo, non lista)
+  Stream<ConnectivityResult>? _connectivityStream;
 
   bool _isSyncing = false;
   int _retryDelaySeconds = 30;
@@ -24,9 +25,8 @@ class NoteService extends ChangeNotifier {
 
   NoteService({this.appContext}) {
     _connectivityStream = _connectivity.onConnectivityChanged;
-    _connectivityStream?.listen((results) async {
-      final result = results.isNotEmpty ? results.first : ConnectivityResult.none;
 
+    _connectivityStream?.listen((result) async {
       if (result != ConnectivityResult.none) {
         debugPrint('🌐 Connessione ripristinata → avvio sincronizzazione automatica');
         _showSnackBar("🌐 Connessione ripristinata: sincronizzazione in corso...");
@@ -76,7 +76,7 @@ class NoteService extends ChangeNotifier {
     _isSyncing = false;
   }
 
-  /// Mostra uno SnackBar visivo
+  /// ✅ SnackBar visuale globale
   void _showSnackBar(String message, {Color color = Colors.greenAccent}) {
     if (appContext != null) {
       final ctx = appContext!;
@@ -87,6 +87,8 @@ class NoteService extends ChangeNotifier {
           duration: const Duration(seconds: 3),
         ),
       );
+    } else {
+      debugPrint('🔔 Snackbar: $message');
     }
   }
 
@@ -218,10 +220,11 @@ class NoteService extends ChangeNotifier {
         await _uploadToOneDriveIfPossible(notesFile, auth);
       }
 
+      _showSnackBar("✅ Sincronizzazione completata con successo");
       debugPrint('✅ Sincronizzazione completata');
     } catch (e) {
       debugPrint('❌ syncWithCloud error: $e');
-      rethrow; // importante per retry
+      rethrow;
     }
   }
 
@@ -242,9 +245,6 @@ class NoteService extends ChangeNotifier {
     }
   }
 
-  // -------------------------
-  // ☁️ Upload Google Drive
-  // -------------------------
   Future<void> _uploadToGoogleDriveIfPossible(File file, AuthService auth) async {
     try {
       final uploaded = await auth.uploadNotesFileToDrive(file);
@@ -254,9 +254,6 @@ class NoteService extends ChangeNotifier {
     }
   }
 
-  // -------------------------
-  // 🪟 OneDrive (stub)
-  // -------------------------
   Future<void> _uploadToOneDriveIfPossible(File file, AuthService auth) async {
     try {
       debugPrint('ℹ️ _uploadToOneDriveIfPossible: non implementato');
@@ -265,9 +262,6 @@ class NoteService extends ChangeNotifier {
     }
   }
 
-  // -------------------------
-  // ➕ Crea nota vuota
-  // -------------------------
   NoteModel createEmptyNote({String type = 'note'}) {
     final id = DateTime.now().millisecondsSinceEpoch.toString();
     return NoteModel(
