@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/note_model.dart';
 import '../services/note_service.dart';
+import '../services/auth_service.dart';
 import '../utils/app_colors.dart';
 import '../widgets/media_viewer.dart';
 import '../widgets/sketch_pad.dart';
@@ -16,11 +17,7 @@ class NoteEditorScreen extends StatefulWidget {
   final NoteModel? existingNote;
   final String type;
 
-  const NoteEditorScreen({
-    super.key,
-    this.existingNote,
-    required this.type,
-  });
+  const NoteEditorScreen({super.key, this.existingNote, required this.type});
 
   @override
   State<NoteEditorScreen> createState() => _NoteEditorScreenState();
@@ -33,27 +30,35 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   final _recorder = FlutterSoundRecorder();
 
   List<Attachment> _attachments = [];
-  Color _color = Colors.white;
+  Color _color = AppColors.surface;
   bool _isRecording = false;
+  bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _recorder.openRecorder();
+    _initRecorder();
+    if (widget.existingNote != null) _loadExistingNote();
+  }
 
-    // se esiste nota precedente, caricala
-    if (widget.existingNote != null) {
-      final n = widget.existingNote!;
-      _titleController.text = n.title;
-      _contentController.text = n.content;
-      _color = Color(int.tryParse(n.colorHex.replaceFirst('#', '0xFF')) ?? 0xFF1E1E1E);
-      _attachments = List.from(n.attachments);
+  Future<void> _initRecorder() async {
+    try {
+      await _recorder.openRecorder();
+    } catch (e) {
+      debugPrint("🎙️ Errore apertura registratore: $e");
     }
+  }
+
+  void _loadExistingNote() {
+    final n = widget.existingNote!;
+    _titleController.text = n.title;
+    _contentController.text = n.content;
+    _color = Color(int.parse(n.colorHex.replaceFirst('#', '0x')));
+    _attachments = List.from(n.attachments);
   }
 
   @override
   void dispose() {
-    if (_recorder.isRecording) _recorder.stopRecorder();
     _recorder.closeRecorder();
     _titleController.dispose();
     _contentController.dispose();
@@ -61,20 +66,47 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   }
 
   Future<void> _saveNote() async {
-    final noteService = context.read<NoteService>();
-    final id = widget.existingNote?.id ?? const Uuid().v4();
+    if (_saving) return;
+    setState(() => _saving = true);
 
-    final note = NoteModel(
-      id: id,
-      type: widget.type,
-      title: _titleController.text.trim(),
-      content: _contentController.text.trim(),
-      colorHex: '#${_color.value.toRadixString(16).padLeft(8, '0')}',
-      updatedAt: DateTime.now(),
-      attachments: _attachments,
-    );
+    try {
+      final noteService = context.read<NoteService>();
+      final auth = context.read<AuthService>();
+      final id = widget.existingNote?.id ?? const Uuid().v4();
 
-    await noteService.addOrUpdate(note);
+      final note = NoteModel(
+        id: id,
+        type: widget.type,
+        title: _titleController.text.trim(),
+        content: _contentController.text.trim(),
+        colorHex: '#${_color.value.toRadixString(16).padLeft(8, '0')}',
+        updatedAt: DateTime.now(),
+        attachments: _attachments,
+      );
+
+      await noteService.addOrUpdate(note);
+
+      // 🔄 Sincronizza automaticamente se online
+      if (auth.currentUser != null) {
+        try {
+          await auth.syncWithCloud(context);
+        } catch (_) {}
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Nota salvata con successo ✅"),
+            backgroundColor: Colors.greenAccent,
+          ),
+        );
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      debugPrint("❌ Errore salvataggio nota: $e");
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Future<void> _pickImage() async {
@@ -92,17 +124,21 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   }
 
   Future<void> _toggleRecording() async {
-    if (_isRecording) {
-      final path = await _recorder.stopRecorder();
-      if (path != null) {
-        setState(() => _attachments.add(Attachment(type: 'audio', url: path)));
+    try {
+      if (_isRecording) {
+        final path = await _recorder.stopRecorder();
+        if (path != null) {
+          setState(() => _attachments.add(Attachment(type: 'audio', url: path)));
+        }
+      } else {
+        final dir = await getTemporaryDirectory();
+        final filePath = "${dir.path}/${DateTime.now().millisecondsSinceEpoch}.aac";
+        await _recorder.startRecorder(toFile: filePath);
       }
-    } else {
-      final dir = await getTemporaryDirectory();
-      final filePath = "${dir.path}/${DateTime.now().millisecondsSinceEpoch}.aac";
-      await _recorder.startRecorder(toFile: filePath);
+      setState(() => _isRecording = !_isRecording);
+    } catch (e) {
+      debugPrint("🎙️ Errore registrazione: $e");
     }
-    setState(() => _isRecording = !_isRecording);
   }
 
   Future<void> _openColorPicker() async {
@@ -111,23 +147,22 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       builder: (ctx) {
         Color selectedColor = _color;
         return AlertDialog(
-          title: const Text('Scegli colore nota'),
+          backgroundColor: AppColors.surface,
+          title: const Text('🎨 Scegli colore nota', style: TextStyle(color: Colors.white)),
           content: Wrap(
             spacing: 8,
             runSpacing: 8,
             children: AppColors.noteColors.map((c) {
+              final selectedBorder = selectedColor == c ? AppColors.accent : Colors.grey;
               return GestureDetector(
-                onTap: () => selectedColor = c,
+                onTap: () => setState(() => selectedColor = c),
                 child: Container(
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
                     color: c,
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: selectedColor == c ? AppColors.primaryLight : Colors.grey,
-                      width: 2,
-                    ),
+                    border: Border.all(color: selectedBorder, width: 2),
                   ),
                 ),
               );
@@ -136,7 +171,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, selectedColor),
-              child: const Text('Conferma'),
+              child: const Text('Conferma', style: TextStyle(color: Colors.white)),
             ),
           ],
         );
@@ -156,14 +191,15 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               ? "Nuova ${widget.type == 'list' ? 'Lista' : 'Nota'}"
               : "Modifica ${widget.type == 'list' ? 'Lista' : 'Nota'}",
         ),
+        backgroundColor: _color,
         actions: [
-          IconButton(icon: const Icon(Icons.color_lens), onPressed: _openColorPicker),
+          IconButton(
+            icon: const Icon(Icons.color_lens),
+            onPressed: _openColorPicker,
+          ),
           IconButton(
             icon: const Icon(Icons.save),
-            onPressed: () async {
-              await _saveNote();
-              if (context.mounted) Navigator.pop(context, true);
-            },
+            onPressed: _saveNote,
           ),
         ],
       ),
@@ -190,20 +226,21 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             ),
             const SizedBox(height: 20),
 
-            // anteprima allegati
+            // 📎 Anteprima allegati
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: _attachments.map((a) {
                 Widget preview;
                 if (a.type == 'image') {
-                  preview = Image.file(File(a.url), width: 100, height: 100, fit: BoxFit.cover);
+                  preview = Image.file(File(a.url),
+                      width: 100, height: 100, fit: BoxFit.cover);
                 } else if (a.type == 'video') {
-                  preview = const Icon(Icons.videocam, size: 80);
+                  preview = const Icon(Icons.videocam, size: 80, color: Colors.white70);
                 } else if (a.type == 'audio') {
-                  preview = const Icon(Icons.audiotrack, size: 80);
+                  preview = const Icon(Icons.audiotrack, size: 80, color: Colors.white70);
                 } else {
-                  preview = const Icon(Icons.insert_drive_file);
+                  preview = const Icon(Icons.insert_drive_file, color: Colors.white70);
                 }
 
                 return GestureDetector(
@@ -211,17 +248,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (_) => MediaViewer(
-                        media: _attachments.map((e) => {'type': e.type, 'path': e.url}).toList(),
+                        media: _attachments
+                            .map((e) => {'type': e.type, 'path': e.url})
+                            .toList(),
                         initialIndex: _attachments.indexOf(a),
                       ),
                     ),
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      color: Colors.black26,
-                      child: preview,
-                    ),
+                    child: Container(color: Colors.black26, child: preview),
                   ),
                 );
               }).toList(),
@@ -229,6 +265,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           ],
         ),
       ),
+
+      // 🎛️ Azioni rapide (foto, video, audio, disegno)
       floatingActionButton: Wrap(
         spacing: 10,
         children: [
