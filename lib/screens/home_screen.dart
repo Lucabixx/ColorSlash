@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ColorSlash/models/note_model.dart';
 import 'package:ColorSlash/services/auth_service.dart';
-import 'package:ColorSlash/utils/app_colors.dart';
+import 'package:ColorSlash/utils/app_colors.dart'; // ✅ percorso corretto
 import 'package:ColorSlash/screens/note_editor_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -25,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
     db = FirebaseFirestore.instance;
   }
 
+  /// ✏️ Crea una nuova nota vuota e apre l’editor
   Future<void> _createNewNote(BuildContext context) async {
     final newNote = NoteModel(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -39,7 +40,10 @@ class _HomeScreenState extends State<HomeScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => NoteEditorScreen(note: newNote),
+        builder: (_) => NoteEditorScreen(
+          existingNote: newNote, // ✅ parametro corretto
+          type: 'note', // ✅ parametro corretto
+        ),
       ),
     );
   }
@@ -80,7 +84,9 @@ class _HomeScreenState extends State<HomeScreen> {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(child: Text('❌ Errore nel caricamento delle note'));
+            return const Center(
+              child: Text('❌ Errore nel caricamento delle note'),
+            );
           }
 
           if (!snapshot.hasData) {
@@ -105,13 +111,19 @@ class _HomeScreenState extends State<HomeScreen> {
             itemCount: notes.length,
             itemBuilder: (context, i) {
               final note = notes[i];
-              final color = Color(int.tryParse(note.colorHex.replaceAll("#", "0xFF")) ?? 0xFF2979FF);
+              final color = Color(
+                int.tryParse(note.colorHex.replaceAll("#", "0xFF")) ??
+                    0xFF2979FF,
+              );
 
               return GestureDetector(
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => NoteEditorScreen(note: note),
+                    builder: (_) => NoteEditorScreen(
+                      existingNote: note, // ✅ parametro corretto
+                      type: note.type, // ✅ parametro corretto
+                    ),
                   ),
                 ),
                 child: Container(
@@ -125,7 +137,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        note.title.isNotEmpty ? note.title : "(senza titolo)",
+                        note.title.isNotEmpty
+                            ? note.title
+                            : "(senza titolo)",
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -161,14 +175,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                     height: 40,
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) =>
-                                        const Icon(Icons.broken_image, color: Colors.white),
+                                        const Icon(Icons.broken_image,
+                                            color: Colors.white),
                                   ),
                                 );
                               } catch (_) {
-                                return const Icon(Icons.broken_image, color: Colors.white);
+                                return const Icon(Icons.broken_image,
+                                    color: Colors.white);
                               }
                             } else {
-                              return const Icon(Icons.attach_file, color: Colors.white);
+                              return const Icon(Icons.attach_file,
+                                  color: Colors.white);
                             }
                           }).toList(),
                         ),
@@ -188,4 +205,3 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-
