@@ -5,7 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:uuid/uuid.dart';
-
+import 'package:ColorSlash/theme/app_colors.dart';
 import '../models/note_model.dart';
 import '../services/note_service.dart';
 import '../services/auth_service.dart';
@@ -17,7 +17,15 @@ class NoteEditorScreen extends StatefulWidget {
   final NoteModel? existingNote;
   final String type;
 
-  const NoteEditorScreen({super.key, this.existingNote, required this.type});
+Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (_) => NoteEditorScreen(
+      existingNote: note, // opzionale
+      type: 'note', // oppure 'list'
+    ),
+  ),
+);
 
   @override
   State<NoteEditorScreen> createState() => _NoteEditorScreenState();
