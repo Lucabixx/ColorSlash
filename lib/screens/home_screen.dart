@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ColorSlash/models/note_model.dart';
 import 'package:ColorSlash/services/auth_service.dart';
-import 'package:ColorSlash/theme/app_colors.dart';
+import 'package:ColorSlash/utils/app_colors.dart';
 import 'package:ColorSlash/screens/note_editor_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -188,3 +188,4 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+
