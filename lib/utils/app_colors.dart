@@ -1,76 +1,69 @@
 import 'package:flutter/material.dart';
 
-/// 🎨 Tavolozza principale di ColorSlash (blu metallico 3D)
+/// AppColors: palette for both light and dark modes.
+/// Provides core colors and gradients. Existing code that references
+/// AppColors.primary, AppColors.primaryLight, AppColors.primaryDark, etc.
+/// will keep working.
 class AppColors {
-  // Palette principale (blu metallico)
-  static const Color primary = Color(0xFF2979FF); // Blu brillante
-  static const Color primaryLight = Color(0xFF82B1FF); // Blu chiaro
-  static const Color primaryDark = Color(0xFF004C8C); // Blu profondo
+  // --- Dark theme (default neon/metallic) ---
+  static const Color primary = Color(0xFF00FFF5); // Neon Aqua
+  static const Color primaryLight = Color(0xFF66FFF9);
+  static const Color primaryDark = Color(0xFF00C7A8);
 
-  static const Color accent = Color(0xFF00E5FF); // Ciano metallico
-  static const Color secondary = Color(0xFF00BFA5);
+  static const Color secondary = Color(0xFFFF00E5); // Neon Magenta
+  static const Color accent = Color(0xFFFFD700); // Bright gold
 
-  // Backgrounds
-  static const Color background = Color(0xFF0D1117); // Nero grafite
-  static const Color surface = Color(0xFF1C1F26); // Blu-grigio scuro
-  static const Color bgColor = background; // alias usato nello splash
+  static const Color background = Color(0xFF0D0D0D); // Almost black
+  static const Color surface = Color(0xFF1A1A1A);
+  static const Color card = surface;
 
-  // Testo
   static const Color textPrimary = Colors.white;
-  static const Color textSecondary = Color(0xFFB0BEC5);
-  static const Color textMuted = Color(0xFF78909C);
+  static const Color textSecondary = Color(0xFFB0BEC5); // Light metallic gray
 
-  // Stati
-  static const Color error = Color(0xFFFF5252);
-  static const Color success = Color(0xFF00E676);
-  static const Color warning = Color(0xFFFFD740);
+  static const Color error = Color(0xFFFF1744);
 
-  // 🌈 Gradiente metallico principale
-  static const LinearGradient metallicGradient = LinearGradient(
-    colors: [
-      Color(0xFF004C8C), // Blu profondo
-      Color(0xFF2979FF), // Blu acceso
-      Color(0xFF00E5FF), // Ciano brillante
-    ],
+  static const Color metallicShadow = Color(0xFF0A0A0A);
+
+  // --- Light theme variants ---
+  static const Color lightPrimary = Color(0xFF00695C);
+  static const Color lightPrimaryLight = Color(0xFF338A7A);
+  static const Color lightPrimaryDark = Color(0xFF003D33);
+
+  static const Color lightSecondary = Color(0xFF8E24AA);
+  static const Color lightAccent = Color(0xFFFFA000);
+
+  static const Color lightBackground = Color(0xFFF6F9FC);
+  static const Color lightSurface = Colors.white;
+
+  static const Color lightTextPrimary = Color(0xFF0F1720); // almost black
+  static const Color lightTextSecondary = Color(0xFF546E7A);
+
+  // --- Gradients ---
+  static const LinearGradient neonGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-  );
-
-  // 🌈 Gradiente più chiaro (per pulsanti, login, ecc.)
-  static const LinearGradient lightGradient = LinearGradient(
     colors: [
-      Color(0xFF1565C0),
-      Color(0xFF42A5F5),
-      Color(0xFF80DEEA),
+      Color(0xFF00FFF5),
+      Color(0xFFFF00E5),
     ],
-    begin: Alignment.topRight,
-    end: Alignment.bottomLeft,
   );
 
-  // 💫 Ombre metalliche (non const, perché usano .withOpacity)
-  static List<BoxShadow> metallicShadow = [
-    BoxShadow(
-      color: primaryLight.withOpacity(0.36),
-      blurRadius: 12,
-      spreadRadius: 1,
-      offset: const Offset(2, 3),
-    ),
-    BoxShadow(
-      color: primaryDark.withOpacity(0.32),
-      blurRadius: 20,
-      offset: const Offset(-3, -2),
-    ),
-  ];
+  static const LinearGradient fireGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFFFF1744),
+      Color(0xFFFF9100),
+      Color(0xFFFFEA00),
+    ],
+  );
 
-  // 🟩 Palette rapida per le note
-  static const List<Color> noteColors = [
-    Color(0xFF2979FF),
-    Color(0xFF00E5FF),
-    Color(0xFF00BFA5),
-    Color(0xFFFFC400),
-    Color(0xFFFF4081),
-    Color(0xFF7C4DFF),
-    Color(0xFF76FF03),
-    Color(0xFFFF6E40),
-  ];
+  // --- Helpers that return colors based on brightness ---
+  static Color primaryFor(Brightness b) => b == Brightness.dark ? primary : lightPrimary;
+  static Color secondaryFor(Brightness b) => b == Brightness.dark ? secondary : lightSecondary;
+  static Color backgroundFor(Brightness b) => b == Brightness.dark ? background : lightBackground;
+  static Color surfaceFor(Brightness b) => b == Brightness.dark ? surface : lightSurface;
+  static Color textPrimaryFor(Brightness b) => b == Brightness.dark ? textPrimary : lightTextPrimary;
+  static Color textSecondaryFor(Brightness b) => b == Brightness.dark ? textSecondary : lightTextSecondary;
+  static Color accentFor(Brightness b) => b == Brightness.dark ? accent : lightAccent;
 }
