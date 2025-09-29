@@ -1,0 +1,7 @@
+// libs/app_colors.gradle
+ext {
+    colorPrimary = "#1E88E5"
+    colorAccent = "#FFC107"
+    colorBackground = "#121212"
+    colorCard = "#1F1F1F"
+}
