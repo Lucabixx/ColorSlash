@@ -26,8 +26,9 @@ class _LoginScreenState extends State<LoginScreen>
     _controller =
         AnimationController(vsync: this, duration: const Duration(seconds: 2))
           ..repeat(reverse: true);
-    _glowAnim =
-        Tween<double>(begin: 0.4, end: 1).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _glowAnim = Tween<double>(begin: 0.4, end: 1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -115,21 +116,33 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
                   const SizedBox(height: 24),
+
+                  /// 🔹 Pulsante di accesso
                   ElevatedButton(
                     onPressed: _loading
                         ? null
                         : () async {
                             setState(() => _loading = true);
-                            final ok = await auth.signInWithEmail(
+
+                            final user = await auth.signInWithEmail(
                               emailCtrl.text.trim(),
                               passCtrl.text.trim(),
                             );
+
                             setState(() => _loading = false);
-                            if (ok && mounted) {
+
+                            if (user != null && mounted) {
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) => const HomeScreen()),
+                                  builder: (_) => const HomeScreen(),
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Accesso non riuscito'),
+                                ),
                               );
                             }
                           },
@@ -152,6 +165,8 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                   ),
                   const SizedBox(height: 20),
+
+                  /// 🔹 Login con Google
                   OutlinedButton.icon(
                     onPressed: () => auth.signInWithGoogle(context),
                     icon: const Icon(Icons.account_circle, color: Colors.white),
@@ -163,12 +178,15 @@ class _LoginScreenState extends State<LoginScreen>
                       side: const BorderSide(color: AppColors.primaryLight),
                       minimumSize: const Size(double.infinity, 50),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
+
+                  /// 🔹 Registrazione
                   TextButton(
-                    onPressed: () => auth.registerWithEmail(context),
+                    onPressed: () => auth.registerWithEmail(),
                     child: const Text(
                       "Non hai un account? Registrati",
                       style: TextStyle(color: AppColors.textSecondary),
