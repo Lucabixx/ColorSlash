@@ -22,9 +22,7 @@ class AuthService extends ChangeNotifier {
   User? get currentUser => _auth.currentUser;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  AuthService() {
-    // In futuro qui possiamo aggiungere listener automatici di sincronizzazione
-  }
+  AuthService();
 
   // ----------------------------
   // 🔐 Metodi di autenticazione
@@ -172,7 +170,8 @@ class AuthService extends ChangeNotifier {
       final metadata = {'name': file.uri.pathSegments.last};
 
       final uri = Uri.parse(
-          'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+      );
 
       final request = http.MultipartRequest('POST', uri)
         ..headers.addAll({'Authorization': headers['Authorization'] ?? ''})
@@ -192,6 +191,54 @@ class AuthService extends ChangeNotifier {
     } catch (e) {
       debugPrint('❌ uploadNotesFileToDrive error: $e');
       return false;
+    }
+  }
+
+  /// 🔄 Sincronizzazione completa: locale ↔ Firestore ↔ Google Drive
+  Future<void> syncWithCloud(BuildContext context) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('⚠️ Devi eseguire l’accesso per sincronizzare')),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('☁️ Avvio sincronizzazione...')),
+    );
+
+    try {
+      // 1️⃣ Recupera note da Firestore
+      final snapshot = await _db
+          .collection('notes')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+
+      final notesData =
+          snapshot.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+
+      // 2️⃣ Salva localmente
+      await saveLocalNotesRaw(notesData);
+
+      // 3️⃣ Esporta file su Google Drive (se login Google attivo)
+      final file = await _getLocalNotesFile();
+      final uploaded = await uploadNotesFileToDrive(file);
+
+      if (uploaded) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Sincronizzazione completata con Drive')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('⚠️ Sincronizzazione Drive non riuscita')),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ syncWithCloud error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('❌ Errore sincronizzazione: $e')),
+      );
     }
   }
 
