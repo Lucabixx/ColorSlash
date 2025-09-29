@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 import 'package:provider/provider.dart';
-
-import '../utils/app_colors.dart';
 import '../services/auth_service.dart';
-import 'home_screen.dart';
-import 'login_screen.dart';
+import '../screens/login_screen.dart';
+import '../screens/home_screen.dart';
+import '../utils/app_colors.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -14,36 +12,39 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _rotation;
   late final Animation<double> _scale;
-  late final Animation<double> _fadeText;
+  late final Animation<double> _fade;
 
   @override
   void initState() {
     super.initState();
 
     _controller = AnimationController(vsync: this, duration: const Duration(seconds: 3));
-    _rotation = Tween<double>(begin: -0.18, end: 0.18).chain(CurveTween(curve: Curves.easeInOut)).animate(_controller);
-    _scale = Tween<double>(begin: 0.76, end: 1.08).chain(CurveTween(curve: Curves.easeOutBack)).animate(_controller);
-    _fadeText = CurvedAnimation(parent: _controller, curve: const Interval(0.5, 1.0, curve: Curves.easeIn));
+    // rotation from 0 to 2*pi (clockwise)
+    _rotation = Tween<double>(begin: 0, end: 2 * 3.14159265).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+    _scale = Tween<double>(begin: 0.85, end: 1.05).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    );
+    _fade = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: const Interval(0.3, 1.0, curve: Curves.easeIn)));
 
-    _controller.repeat(reverse: true);
+    _controller.repeat();
 
-    Future.delayed(const Duration(seconds: 3), () {
-      final auth = Provider.of<AuthService>(context, listen: false);
-      final isLogged = auth.currentUser != null;
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 700),
-          pageBuilder: (_, __, ___) => isLogged ? const HomeScreen() : const LoginScreen(),
-          transitionsBuilder: (_, anim, __, child) {
-            return FadeTransition(opacity: anim, child: child);
-          },
-        ),
-      );
-    });
+    // After splash delay, navigate to login or home depending on auth state
+    Future.delayed(const Duration(seconds: 3), _navigateNext);
+  }
+
+  void _navigateNext() {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final user = auth.currentUser;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => user == null ? const LoginScreen() : const HomeScreen()),
+    );
   }
 
   @override
@@ -52,99 +53,68 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     super.dispose();
   }
 
-  Widget _floatingIcon(IconData icon, Color color, double angle, double radius) {
-    // un'icona che orbita intorno al logo (per effetto 3D dinamico)
-    final dx = math.cos(angle) * radius;
-    final dy = math.sin(angle) * radius;
-    return Transform.translate(
-      offset: Offset(dx, dy),
-      child: Icon(icon, color: color.withOpacity(0.95), size: 36),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final logo = Image.asset('assets/splash.png', width: 160, height: 160);
     return Scaffold(
-      backgroundColor: AppColors.bgColor,
+      backgroundColor: AppColors.background,
       body: Center(
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, _) {
-            final t = _controller.value;
-            return Stack(
-              alignment: Alignment.center,
-              children: [
-                // bagliore circolare
-                Container(
-                  width: 320,
-                  height: 320,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        AppColors.primary.withOpacity(0.06 + t * 0.12),
-                        Colors.transparent,
-                      ],
-                      radius: 0.9,
-                    ),
-                  ),
-                ),
-
-                // logo 3D rotante
-                Transform(
-                  alignment: Alignment.center,
-                  transform: Matrix4.identity()
-                    ..setEntry(3, 2, 0.001)
-                    ..rotateY(_rotation.value),
-                  child: Transform.scale(
-                    scale: _scale.value,
-                    child: Container(
-                      width: 160,
-                      height: 160,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.metallicGradient,
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: AppColors.metallicShadow,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(18.0),
-                        child: Image.asset('assets/splash.png', fit: BoxFit.contain),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // orbit glow background
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _controller,
+                builder: (_, __) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        colors: [
+                          AppColors.primaryLight.withOpacity(0.06 + 0.2 * (_controller.value)),
+                          Colors.transparent,
+                        ],
+                        radius: 0.9,
                       ),
                     ),
-                  ),
-                ),
+                  );
+                },
+              ),
+            ),
 
-                // icone che orbitano (microfono, video, foto, pennello)
-                Positioned(
-                  left: 40,
-                  top: 80,
-                  child: _floatingIcon(Icons.mic, AppColors.primaryLight, t * math.pi * 2, 0),
-                ),
-                Positioned(
-                  right: 40,
-                  top: 80,
-                  child: _floatingIcon(Icons.camera_alt, AppColors.accent, -t * math.pi * 2, 0),
-                ),
+            // rotating central logo (clockwise)
+            AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                return Transform.rotate(
+                  angle: _rotation.value,
+                  child: Transform.scale(scale: _scale.value, child: FadeTransition(opacity: _fade, child: logo)),
+                );
+              },
+            ),
 
-                // testo con fade
-                Positioned(
-                  bottom: 64,
-                  child: Opacity(
-                    opacity: _fadeText.value,
-                    child: const Text(
-                      "ColorSlash",
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 1.4,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
+            // bottom-left small pen icon
+            Positioned(
+              left: 18,
+              bottom: 24,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: AppColors.surface.withOpacity(0.6), borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.create, color: Colors.white, size: 28),
+              ),
+            ),
+
+            // bottom-right small note icon
+            Positioned(
+              right: 18,
+              bottom: 24,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: AppColors.surface.withOpacity(0.6), borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.sticky_note_2, color: Colors.white, size: 28),
+              ),
+            ),
+          ],
         ),
       ),
     );
