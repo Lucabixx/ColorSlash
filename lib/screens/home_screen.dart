@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../utils/app_colors.dart';
 import 'package:colorslash/utils/app_colors.dart';
 import 'package:colorslash/screens/media_gallery_screen.dart';
 import 'package:colorslash/screens/note_editor_screen.dart';
@@ -316,4 +317,5 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+
 
