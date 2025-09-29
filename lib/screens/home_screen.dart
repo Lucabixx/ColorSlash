@@ -50,10 +50,10 @@ class _HomeScreenState extends State<HomeScreen> {
           PopupMenuButton<String>(
             icon: const Icon(Icons.filter_alt_outlined),
             onSelected: (val) => setState(() => filterType = val),
-            itemBuilder: (_) => [
-              const PopupMenuItem(value: "tutti", child: Text("Tutti")),
-              const PopupMenuItem(value: "note", child: Text("Solo Note")),
-              const PopupMenuItem(value: "list", child: Text("Solo Liste")),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: "tutti", child: Text("Tutti")),
+              PopupMenuItem(value: "note", child: Text("Solo Note")),
+              PopupMenuItem(value: "list", child: Text("Solo Liste")),
             ],
           ),
           IconButton(
@@ -103,10 +103,8 @@ class _HomeScreenState extends State<HomeScreen> {
           Expanded(
             child: filteredNotes.isEmpty
                 ? const Center(
-                    child: Text(
-                      "Nessuna nota trovata",
-                      style: TextStyle(color: Colors.white54),
-                    ),
+                    child: Text("Nessuna nota trovata",
+                        style: TextStyle(color: Colors.white54)),
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.all(10),
@@ -114,7 +112,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     itemBuilder: (context, i) {
                       final note = filteredNotes[i];
                       final color = Color(
-                        int.tryParse(note.colorHex.replaceFirst('#', '0xFF')) ?? 0xFF1E1E1E,
+                        int.tryParse(note.colorHex.replaceFirst('#', '0xFF')) ??
+                            0xFF1E1E1E,
                       );
 
                       return Card(
@@ -133,11 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(color: Colors.white70),
                           ),
-
-                          // 👆 Tocco singolo → apre l’editor
                           onTap: () => _openEditor(note),
-
-                          // ✋ Pressione lunga → anteprima
                           onLongPress: () => _showPreview(note),
                         ),
                       );
@@ -147,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
 
-      // 🔹 Floating Action Button (nuova nota/lista)
+      // 🔹 Pulsante centrale
       floatingActionButton: Container(
         decoration: BoxDecoration(
           shape: BoxShape.circle,
@@ -167,18 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: FloatingActionButton(
           backgroundColor: AppColors.primary,
           elevation: 14,
-          child: ShaderMask(
-            shaderCallback: (bounds) => const LinearGradient(
-              colors: [
-                AppColors.primaryLight,
-                AppColors.primary,
-                AppColors.primaryDark,
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ).createShader(bounds),
-            child: const Icon(Icons.add, size: 34, color: Colors.white),
-          ),
+          child: const Icon(Icons.add, size: 34, color: Colors.white),
           onPressed: () {
             showModalBottomSheet(
               backgroundColor: AppColors.surface,
@@ -186,33 +170,31 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
               context: context,
-              builder: (ctx) {
-                return Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.note_add, color: AppColors.primaryLight),
-                        title: const Text('Nuova Nota', style: TextStyle(color: Colors.white)),
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          _createNewNote("note");
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.checklist, color: AppColors.primaryLight),
-                        title: const Text('Nuova Lista', style: TextStyle(color: Colors.white)),
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          _createNewNote("list");
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                  ),
-                );
-              },
+              builder: (ctx) => Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.note_add, color: AppColors.primaryLight),
+                      title: const Text('Nuova Nota', style: TextStyle(color: Colors.white)),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _createNewNote("note");
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.checklist, color: AppColors.primaryLight),
+                      title: const Text('Nuova Lista', style: TextStyle(color: Colors.white)),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _createNewNote("list");
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                ),
+              ),
             );
           },
         ),
@@ -226,7 +208,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => NoteEditorScreen(
-          noteId: DateTime.now().millisecondsSinceEpoch.toString(),
+          existingNote: null,
           type: type,
         ),
       ),
@@ -240,7 +222,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => NoteEditorScreen(
-          noteId: note.id,
+          existingNote: note,
           type: note.type,
         ),
       ),
@@ -248,7 +230,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {});
   }
 
-  /// 🔹 Mostra anteprima con titolo, testo, immagini e pulsante "Apri nota completa"
+  /// 🔹 Mostra anteprima
   void _showPreview(NoteModel note) {
     showModalBottomSheet(
       backgroundColor: AppColors.surface,
@@ -263,11 +245,9 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                note.title,
-                style: const TextStyle(
-                  color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-              ),
+              Text(note.title,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               Text(
                 note.content.isEmpty
@@ -276,18 +256,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: const TextStyle(color: Colors.white70, fontSize: 16),
               ),
               const SizedBox(height: 16),
-
               if (note.attachments.isNotEmpty)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "Media allegati:",
-                      style: TextStyle(
-                          color: Colors.white70,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 15),
-                    ),
+                    const Text("Media allegati:",
+                        style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w500)),
                     const SizedBox(height: 10),
                     SizedBox(
                       height: 100,
@@ -299,8 +273,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   padding: const EdgeInsets.only(right: 10),
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(12),
-                                    child: Image.network(
-                                      a.url,
+                                    child: Image.file(
+                                      File(a.url),
                                       height: 100,
                                       width: 100,
                                       fit: BoxFit.cover,
@@ -316,10 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
-
               const SizedBox(height: 20),
-
-              // 🔹 Pulsante per aprire la nota
               Align(
                 alignment: Alignment.center,
                 child: ElevatedButton.icon(
@@ -329,9 +300,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   onPressed: () {
                     Navigator.pop(ctx);
