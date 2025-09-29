@@ -16,7 +16,11 @@ class NoteEditorScreen extends StatefulWidget {
   final NoteModel? existingNote;
   final String type;
 
-  const NoteEditorScreen({super.key, this.existingNote, required this.type});
+  const NoteEditorScreen({
+    super.key,
+    this.existingNote,
+    required this.type,
+  });
 
   @override
   State<NoteEditorScreen> createState() => _NoteEditorScreenState();
@@ -36,17 +40,20 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   void initState() {
     super.initState();
     _recorder.openRecorder();
+
+    // se esiste nota precedente, caricala
     if (widget.existingNote != null) {
       final n = widget.existingNote!;
       _titleController.text = n.title;
       _contentController.text = n.content;
-      _color = Color(int.parse(n.colorHex.replaceFirst('#', '0x')));
+      _color = Color(int.tryParse(n.colorHex.replaceFirst('#', '0xFF')) ?? 0xFF1E1E1E);
       _attachments = List.from(n.attachments);
     }
   }
 
   @override
   void dispose() {
+    if (_recorder.isRecording) _recorder.stopRecorder();
     _recorder.closeRecorder();
     _titleController.dispose();
     _contentController.dispose();
@@ -108,27 +115,23 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           content: Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: AppColors.noteColors
-                .map(
-                  (c) => GestureDetector(
-                    onTap: () => selectedColor = c,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: c,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: selectedColor == c
-                              ? AppColors.primaryLight
-                              : Colors.grey,
-                          width: 2,
-                        ),
-                      ),
+            children: AppColors.noteColors.map((c) {
+              return GestureDetector(
+                onTap: () => selectedColor = c,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: c,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: selectedColor == c ? AppColors.primaryLight : Colors.grey,
+                      width: 2,
                     ),
                   ),
-                )
-                .toList(),
+                ),
+              );
+            }).toList(),
           ),
           actions: [
             TextButton(
@@ -139,6 +142,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         );
       },
     );
+
     if (selected != null) setState(() => _color = selected);
   }
 
@@ -147,14 +151,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     return Scaffold(
       backgroundColor: _color.withOpacity(0.1),
       appBar: AppBar(
-        title: Text(widget.existingNote == null
-            ? "Nuova ${widget.type == 'list' ? 'Lista' : 'Nota'}"
-            : "Modifica ${widget.type == 'list' ? 'Lista' : 'Nota'}"),
+        title: Text(
+          widget.existingNote == null
+              ? "Nuova ${widget.type == 'list' ? 'Lista' : 'Nota'}"
+              : "Modifica ${widget.type == 'list' ? 'Lista' : 'Nota'}",
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.color_lens),
-            onPressed: _openColorPicker,
-          ),
+          IconButton(icon: const Icon(Icons.color_lens), onPressed: _openColorPicker),
           IconButton(
             icon: const Icon(Icons.save),
             onPressed: () async {
@@ -187,14 +190,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             ),
             const SizedBox(height: 20),
 
+            // anteprima allegati
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: _attachments.map((a) {
                 Widget preview;
                 if (a.type == 'image') {
-                  preview = Image.file(File(a.url),
-                      width: 100, height: 100, fit: BoxFit.cover);
+                  preview = Image.file(File(a.url), width: 100, height: 100, fit: BoxFit.cover);
                 } else if (a.type == 'video') {
                   preview = const Icon(Icons.videocam, size: 80);
                 } else if (a.type == 'audio') {
@@ -208,10 +211,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (_) => MediaViewer(
-                        media: _attachments
-                            .map((e) =>
-                                {'type': e.type, 'path': e.url})
-                            .toList(),
+                        media: _attachments.map((e) => {'type': e.type, 'path': e.url}).toList(),
                         initialIndex: _attachments.indexOf(a),
                       ),
                     ),
@@ -246,8 +246,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           ),
           FloatingActionButton(
             heroTag: 'mic',
-            backgroundColor:
-                _isRecording ? Colors.redAccent : AppColors.accent,
+            backgroundColor: _isRecording ? Colors.redAccent : AppColors.accent,
             child: Icon(_isRecording ? Icons.stop : Icons.mic),
             onPressed: _toggleRecording,
           ),
