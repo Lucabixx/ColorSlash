@@ -25,7 +25,7 @@ class AppColors {
   static const Color success = Color(0xFF00E676);
   static const Color warning = Color(0xFFFFD740);
 
-  // Gradients metallici
+  // 🌈 Gradiente metallico principale
   static const LinearGradient metallicGradient = LinearGradient(
     colors: [
       Color(0xFF004C8C), // Blu profondo
@@ -36,6 +36,7 @@ class AppColors {
     end: Alignment.bottomRight,
   );
 
+  // 🌈 Gradiente più chiaro (per pulsanti, login, ecc.)
   static const LinearGradient lightGradient = LinearGradient(
     colors: [
       Color(0xFF1565C0),
@@ -46,7 +47,7 @@ class AppColors {
     end: Alignment.bottomLeft,
   );
 
-  // Shadow helpers (metallic 3D look)
+  // 💫 Ombre metalliche (non const, perché usano .withOpacity)
   static List<BoxShadow> metallicShadow = [
     BoxShadow(
       color: primaryLight.withOpacity(0.36),
@@ -61,7 +62,7 @@ class AppColors {
     ),
   ];
 
-  // Colori rapidi per le note
+  // 🟩 Palette rapida per le note
   static const List<Color> noteColors = [
     Color(0xFF2979FF),
     Color(0xFF00E5FF),
