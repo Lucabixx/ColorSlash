@@ -1,7 +1,5 @@
-// lib/services/auth_service.dart
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -17,7 +15,7 @@ class AuthService extends ChangeNotifier {
     scopes: <String>[
       'email',
       'profile',
-      'https://www.googleapis.com/auth/drive.file', // per upload su Drive (file per-app)
+      'https://www.googleapis.com/auth/drive.file', // Accesso ai file dell’app su Drive
     ],
   );
 
@@ -25,162 +23,182 @@ class AuthService extends ChangeNotifier {
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   AuthService() {
-    // Puoi aggiungere eventuali listener all'avvio se vuoi
+    // In futuro qui possiamo aggiungere listener automatici di sincronizzazione
   }
 
   // ----------------------------
-  // Autenticazioni
+  // 🔐 Metodi di autenticazione
   // ----------------------------
+
+  /// Login anonimo (offline-ready)
   Future<User?> signInAnonymously() async {
     try {
       final cred = await _auth.signInAnonymously();
       notifyListeners();
       return cred.user;
     } catch (e) {
-      debugPrint('Errore signInAnonymously: $e');
+      debugPrint('❌ Errore signInAnonymously: $e');
       return null;
     }
   }
 
+  /// Login via email e password
   Future<User?> signInWithEmail(String email, String password) async {
     try {
-      final cred = await _auth.signInWithEmailAndPassword(email: email, password: password);
+      final cred = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
       final user = cred.user;
-      // se vuoi forzare la verifica email:
       if (user != null && !user.emailVerified) {
-        // invia email di verifica e fai logout (opzionale)
         await user.sendEmailVerification();
-        // await _auth.signOut();
-        // return null;
+        debugPrint('⚠️ Email non verificata, inviata nuova verifica.');
       }
+
       notifyListeners();
       return user;
     } catch (e) {
-      debugPrint('Errore login email: $e');
+      debugPrint('❌ Errore login email: $e');
       return null;
     }
   }
 
-  Future<User?> registerWithEmail(String email, String password) async {
+  /// Registrazione nuovo utente
+  Future<User?> registerWithEmail([String? email, String? password]) async {
     try {
-      final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      if (email == null || password == null || email.isEmpty || password.isEmpty) {
+        debugPrint('⚠️ Email o password mancanti nella registrazione.');
+        return null;
+      }
+
+      final cred = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
       final user = cred.user;
       if (user != null) {
         await user.sendEmailVerification();
+        debugPrint('✅ Utente registrato e mail di verifica inviata.');
       }
+
       notifyListeners();
       return user;
     } catch (e) {
-      debugPrint('Errore registrazione: $e');
+      debugPrint('❌ Errore registrazione: $e');
       return null;
     }
   }
 
-  Future<User?> signInWithGoogle() async {
+  /// Login con Google (sincronizzato a Drive)
+  Future<User?> signInWithGoogle([BuildContext? context]) async {
     try {
       final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null;
+      if (googleUser == null) return null; // login annullato
+
       final googleAuth = await googleUser.authentication;
+
       final credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
         accessToken: googleAuth.accessToken,
       );
 
       final result = await _auth.signInWithCredential(credential);
+
       notifyListeners();
+      debugPrint('✅ Google Sign-In completato.');
       return result.user;
     } catch (e) {
-      debugPrint('Errore Google Sign-In: $e');
+      debugPrint('❌ Errore Google Sign-In: $e');
       return null;
     }
   }
 
-  /// Stub / scaffold per Microsoft sign-in (OneDrive). Implementazione completa richiede
-  /// registrare l'app su Azure AD, gestire redirect URI e token OAuth.
+  /// Integrazione futura: login con Microsoft / OneDrive
   Future<User?> signInWithMicrosoft() async {
-    // TODO: Implementare flusso OAuth Microsoft (Azure) con WebView / external browser
-    // e poi creare account Firebase custom token oppure associare all'utente.
-    debugPrint('signInWithMicrosoft: non implementato, vedi TODO');
+    // TODO: integrare OAuth Microsoft tramite Azure e Firebase custom token
+    debugPrint('⚠️ signInWithMicrosoft: da implementare');
     return null;
   }
 
+  /// Logout completo (Firebase + Google)
   Future<void> signOut() async {
     try {
       if (_googleSignIn.currentUser != null) {
         await _googleSignIn.signOut();
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Errore signOut Google: $e');
+    }
+
     await _auth.signOut();
     notifyListeners();
   }
 
   // ----------------------------
-  // Helper per Google Drive upload
+  // ☁️ Sincronizzazione Cloud
   // ----------------------------
-  /// Recupera headers di autenticazione (Bearer) per chiamate Google REST API
+
+  /// Headers autenticazione Google REST API
   Future<Map<String, String>?> getGoogleAuthHeaders() async {
     try {
-      final account = _googleSignIn.currentUser;
-      if (account == null) {
-        // prova silent sign in
-        final silent = await _googleSignIn.signInSilently();
-        if (silent == null) return null;
-      }
-      final auth = await _googleSignIn.currentUser?.authentication;
-      final token = auth?.accessToken;
+      final account = _googleSignIn.currentUser ?? await _googleSignIn.signInSilently();
+      if (account == null) return null;
+
+      final auth = await account.authentication;
+      final token = auth.accessToken;
       if (token == null) return null;
+
       return {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json; charset=UTF-8',
       };
     } catch (e) {
-      debugPrint('getGoogleAuthHeaders error: $e');
+      debugPrint('❌ getGoogleAuthHeaders error: $e');
       return null;
     }
   }
 
-  /// upload file JSON notes.json su Google Drive (cartella per-app)
-  /// Se vuoi un comportamento più ricercato (es. aggiornare se già esiste), va esteso.
+  /// Upload locale su Google Drive
   Future<bool> uploadNotesFileToDrive(File file) async {
     try {
       final headers = await getGoogleAuthHeaders();
       if (headers == null) {
-        debugPrint('uploadNotesFileToDrive: no google headers');
+        debugPrint('❌ uploadNotesFileToDrive: no auth headers');
         return false;
       }
 
-      // Carica file in multipart (metadata + content)
-      final metadata = {
-        'name': file.uri.pathSegments.last,
-        // 'parents': ['appDataFolder'] // puoi usare 'appDataFolder' per spazio privato dell'app
-      };
+      final metadata = {'name': file.uri.pathSegments.last};
 
-      final uri = Uri.parse('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
+      final uri = Uri.parse(
+          'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
 
       final request = http.MultipartRequest('POST', uri)
-        ..headers.addAll({'Authorization': headers['Authorization'] ?? ''});
-
-      request.fields['metadata'] = jsonEncode(metadata);
-      request.files.add(await http.MultipartFile.fromPath('file', file.path, filename: file.uri.pathSegments.last));
+        ..headers.addAll({'Authorization': headers['Authorization'] ?? ''})
+        ..fields['metadata'] = jsonEncode(metadata)
+        ..files.add(await http.MultipartFile.fromPath('file', file.path));
 
       final streamed = await request.send();
       final response = await http.Response.fromStream(streamed);
+
       if (response.statusCode == 200 || response.statusCode == 201) {
-        debugPrint('Drive upload OK: ${response.body}');
+        debugPrint('✅ Drive upload OK: ${response.body}');
         return true;
       } else {
-        debugPrint('Drive upload failed: ${response.statusCode} - ${response.body}');
+        debugPrint('❌ Drive upload failed: ${response.statusCode} - ${response.body}');
         return false;
       }
     } catch (e) {
-      debugPrint('uploadNotesFileToDrive error: $e');
+      debugPrint('❌ uploadNotesFileToDrive error: $e');
       return false;
     }
   }
 
   // ----------------------------
-  // Funzioni locali utili per sync
+  // 📁 Gestione file locale
   // ----------------------------
+
   Future<File> _getLocalNotesFile() async {
     final dir = await getApplicationDocumentsDirectory();
     return File('${dir.path}/notes.json');
@@ -194,7 +212,7 @@ class AuthService extends ChangeNotifier {
       final decoded = jsonDecode(s) as List<dynamic>;
       return decoded.map((e) => Map<String, dynamic>.from(e as Map)).toList();
     } catch (e) {
-      debugPrint('loadLocalNotesRaw error: $e');
+      debugPrint('❌ loadLocalNotesRaw error: $e');
       return [];
     }
   }
@@ -204,10 +222,10 @@ class AuthService extends ChangeNotifier {
       final file = await _getLocalNotesFile();
       await file.writeAsString(jsonEncode(notes));
     } catch (e) {
-      debugPrint('saveLocalNotesRaw error: $e');
+      debugPrint('❌ saveLocalNotesRaw error: $e');
     }
   }
 
-  // helper pubblico
+  /// Utente corrente Firebase
   Future<User?> getUser() async => _auth.currentUser;
 }
