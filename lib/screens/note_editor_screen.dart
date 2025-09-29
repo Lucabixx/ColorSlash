@@ -5,7 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:uuid/uuid.dart';
-import 'package:ColorSlash/theme/app_colors.dart';
+import 'package:ColorSlash/utils/app_colors.dart';
 import '../models/note_model.dart';
 import '../services/note_service.dart';
 import '../services/auth_service.dart';
@@ -17,15 +17,11 @@ class NoteEditorScreen extends StatefulWidget {
   final NoteModel? existingNote;
   final String type;
 
-Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (_) => NoteEditorScreen(
-      existingNote: note, // opzionale
-      type: 'note', // oppure 'list'
-    ),
-  ),
-);
+  const NoteEditorScreen({
+    Key? key,
+    this.existingNote,
+    required this.type,
+  }) : super(key: key);
 
   @override
   State<NoteEditorScreen> createState() => _NoteEditorScreenState();
@@ -61,7 +57,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final n = widget.existingNote!;
     _titleController.text = n.title;
     _contentController.text = n.content;
-    _color = Color(int.parse(n.colorHex.replaceFirst('#', '0x')));
+    _color = Color(int.parse(n.colorHex.replaceFirst('#', '0xFF')));
     _attachments = List.from(n.attachments);
   }
 
