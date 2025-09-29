@@ -1,11 +1,9 @@
-// lib/services/note_service.dart
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:http/http.dart' as http;
 
 import '../models/note_model.dart';
 import 'auth_service.dart';
@@ -17,23 +15,79 @@ class NoteService extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Connectivity _connectivity = Connectivity();
 
-  // ✅ Nuovo tipo: ora lo stream emette List<ConnectivityResult>
   Stream<List<ConnectivityResult>>? _connectivityStream;
 
-  NoteService() {
-    // ✅ Ascolta lo stato rete con nuova API
+  bool _isSyncing = false;
+  int _retryDelaySeconds = 30;
+
+  BuildContext? appContext;
+
+  NoteService({this.appContext}) {
     _connectivityStream = _connectivity.onConnectivityChanged;
     _connectivityStream?.listen((results) async {
       final result = results.isNotEmpty ? results.first : ConnectivityResult.none;
 
       if (result != ConnectivityResult.none) {
         debugPrint('🌐 Connessione ripristinata → avvio sincronizzazione automatica');
-        // Qui in futuro puoi richiamare sync automatica, es:
-        // await syncWithCloud(auth);
+        _showSnackBar("🌐 Connessione ripristinata: sincronizzazione in corso...");
+        await _trySyncWithRetry();
       } else {
-        debugPrint('📴 Connessione assente');
+        _showSnackBar("📴 Connessione assente — modalità offline");
       }
     });
+  }
+
+  /// 🔁 Tentativo di sync con retry progressivo
+  Future<void> _trySyncWithRetry() async {
+    if (_isSyncing) return;
+    _isSyncing = true;
+
+    int attempt = 0;
+    final maxDelay = Duration(minutes: 2);
+
+    while (true) {
+      try {
+        final auth = AuthService();
+        if (auth.currentUser == null) {
+          debugPrint('⚠️ Utente non autenticato → interrompo retry sync');
+          _showSnackBar("⚠️ Nessun utente loggato, sincronizzazione interrotta");
+          break;
+        }
+
+        await syncWithCloud(auth);
+        _retryDelaySeconds = 30;
+        _showSnackBar("✅ Sincronizzazione completata con successo");
+        debugPrint('✅ Sync automatica completata');
+        break;
+      } catch (e) {
+        attempt++;
+        final delay = Duration(seconds: _retryDelaySeconds);
+        debugPrint('❌ Tentativo $attempt fallito: $e → ritento tra ${delay.inSeconds}s');
+        _showSnackBar(
+          "⚠️ Tentativo $attempt fallito — nuovo tentativo tra ${delay.inSeconds}s",
+          color: Colors.orangeAccent,
+        );
+
+        await Future.delayed(delay);
+        _retryDelaySeconds = (_retryDelaySeconds * 2).clamp(30, maxDelay.inSeconds);
+      }
+    }
+
+    _isSyncing = false;
+  }
+
+  /// Mostra uno SnackBar visivo
+  void _showSnackBar(String message, {Color color = Colors.greenAccent}) {
+    if (appContext != null) {
+      final ctx = appContext!;
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: color,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   // -------------------------
@@ -142,13 +196,10 @@ class NoteService extends ChangeNotifier {
         final cloud = cloudMap[id];
 
         if (local == null && cloud != null) {
-          // Solo su Firestore → aggiungi in locale
           _notes.add(cloud);
         } else if (cloud == null && local != null) {
-          // Solo in locale → carica su cloud
           await _saveToCloud(local, auth);
         } else if (local != null && cloud != null) {
-          // Esistono entrambi → tieni il più recente
           if (local.updatedAt.isAfter(cloud.updatedAt)) {
             await _saveToCloud(local, auth);
           } else if (cloud.updatedAt.isAfter(local.updatedAt)) {
@@ -170,6 +221,7 @@ class NoteService extends ChangeNotifier {
       debugPrint('✅ Sincronizzazione completata');
     } catch (e) {
       debugPrint('❌ syncWithCloud error: $e');
+      rethrow; // importante per retry
     }
   }
 
@@ -207,7 +259,6 @@ class NoteService extends ChangeNotifier {
   // -------------------------
   Future<void> _uploadToOneDriveIfPossible(File file, AuthService auth) async {
     try {
-      // TODO: Implementare upload OneDrive via Microsoft Graph API
       debugPrint('ℹ️ _uploadToOneDriveIfPossible: non implementato');
     } catch (e) {
       debugPrint('❌ _uploadToOneDriveIfPossible error: $e');
