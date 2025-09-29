@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ColorSlash/models/note_model.dart';
 import 'package:ColorSlash/services/auth_service.dart';
-import 'package:ColorSlash/utils/app_colors.dart'; // ✅ percorso corretto
+import 'package:ColorSlash/utils/app_colors.dart';
 import 'package:ColorSlash/screens/note_editor_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -25,7 +25,6 @@ class _HomeScreenState extends State<HomeScreen> {
     db = FirebaseFirestore.instance;
   }
 
-  /// ✏️ Crea una nuova nota vuota e apre l’editor
   Future<void> _createNewNote(BuildContext context) async {
     final newNote = NoteModel(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -41,8 +40,8 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => NoteEditorScreen(
-          existingNote: newNote, // ✅ parametro corretto
-          type: 'note', // ✅ parametro corretto
+          existingNote: newNote,
+          type: 'note',
         ),
       ),
     );
@@ -93,9 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final notes = snapshot.data!.docs
-              .map((d) => NoteModel.fromDoc(d))
-              .toList();
+          final notes = snapshot.data!.docs.map((d) => NoteModel.fromDoc(d)).toList();
 
           if (notes.isEmpty) {
             return const Center(child: Text('📝 Nessuna nota presente'));
@@ -112,8 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
             itemBuilder: (context, i) {
               final note = notes[i];
               final color = Color(
-                int.tryParse(note.colorHex.replaceAll("#", "0xFF")) ??
-                    0xFF2979FF,
+                int.tryParse(note.colorHex.replaceAll("#", "0xFF")) ?? 0xFF2979FF,
               );
 
               return GestureDetector(
@@ -121,8 +117,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (_) => NoteEditorScreen(
-                      existingNote: note, // ✅ parametro corretto
-                      type: note.type, // ✅ parametro corretto
+                      existingNote: note,
+                      type: note.type,
                     ),
                   ),
                 ),
@@ -137,9 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        note.title.isNotEmpty
-                            ? note.title
-                            : "(senza titolo)",
+                        note.title.isNotEmpty ? note.title : "(senza titolo)",
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -175,17 +169,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                     height: 40,
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) =>
-                                        const Icon(Icons.broken_image,
-                                            color: Colors.white),
+                                        const Icon(Icons.broken_image, color: Colors.white),
                                   ),
                                 );
                               } catch (_) {
-                                return const Icon(Icons.broken_image,
-                                    color: Colors.white);
+                                return const Icon(Icons.broken_image, color: Colors.white);
                               }
                             } else {
-                              return const Icon(Icons.attach_file,
-                                  color: Colors.white);
+                              return const Icon(Icons.attach_file, color: Colors.white);
                             }
                           }).toList(),
                         ),
