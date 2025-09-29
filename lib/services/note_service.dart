@@ -17,20 +17,27 @@ class NoteService extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Connectivity _connectivity = Connectivity();
 
-  Stream<ConnectivityResult>? _connectivityStream;
+  // ✅ Nuovo tipo: ora lo stream emette List<ConnectivityResult>
+  Stream<List<ConnectivityResult>>? _connectivityStream;
 
   NoteService() {
-    // Ascolta lo stato della rete per riattivare la sync automatica
+    // ✅ Ascolta lo stato rete con nuova API
     _connectivityStream = _connectivity.onConnectivityChanged;
-    _connectivityStream?.listen((status) async {
-      if (status != ConnectivityResult.none) {
+    _connectivityStream?.listen((results) async {
+      final result = results.isNotEmpty ? results.first : ConnectivityResult.none;
+
+      if (result != ConnectivityResult.none) {
         debugPrint('🌐 Connessione ripristinata → avvio sincronizzazione automatica');
+        // Qui in futuro puoi richiamare sync automatica, es:
+        // await syncWithCloud(auth);
+      } else {
+        debugPrint('📴 Connessione assente');
       }
     });
   }
 
   // -------------------------
-  // File locale
+  // 📁 File locale
   // -------------------------
   Future<File> _getNotesFile() async {
     final dir = await getApplicationDocumentsDirectory();
@@ -45,11 +52,14 @@ class NoteService extends ChangeNotifier {
         notifyListeners();
         return;
       }
+
       final raw = await file.readAsString();
       final List<dynamic> decoded = jsonDecode(raw);
+
       _notes
         ..clear()
         ..addAll(decoded.map((e) => NoteModel.fromJson(Map<String, dynamic>.from(e as Map))));
+
       notifyListeners();
     } catch (e) {
       debugPrint('❌ loadLocalNotes error: $e');
@@ -67,10 +77,11 @@ class NoteService extends ChangeNotifier {
   }
 
   // -------------------------
-  // CRUD locali + cloud
+  // ✏️ CRUD locali + cloud
   // -------------------------
   Future<void> addOrUpdate(NoteModel note, {bool sync = true, AuthService? auth}) async {
     final idx = _notes.indexWhere((n) => n.id == note.id);
+
     if (idx != -1) {
       _notes[idx] = note;
     } else {
@@ -108,7 +119,7 @@ class NoteService extends ChangeNotifier {
   }
 
   // -------------------------
-  // Sync bidirezionale completa
+  // ☁️ Sync bidirezionale
   // -------------------------
   Future<void> syncWithCloud(AuthService auth) async {
     final user = auth.currentUser;
@@ -167,7 +178,12 @@ class NoteService extends ChangeNotifier {
       final user = auth.currentUser;
       if (user == null) return;
 
-      final ref = _firestore.collection('users').doc(user.uid).collection('notes').doc(note.id);
+      final ref = _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('notes')
+          .doc(note.id);
+
       await ref.set(note.toJson());
     } catch (e) {
       debugPrint('❌ _saveToCloud error: $e');
@@ -175,7 +191,7 @@ class NoteService extends ChangeNotifier {
   }
 
   // -------------------------
-  // Google Drive upload
+  // ☁️ Upload Google Drive
   // -------------------------
   Future<void> _uploadToGoogleDriveIfPossible(File file, AuthService auth) async {
     try {
@@ -187,7 +203,7 @@ class NoteService extends ChangeNotifier {
   }
 
   // -------------------------
-  // OneDrive upload stub
+  // 🪟 OneDrive (stub)
   // -------------------------
   Future<void> _uploadToOneDriveIfPossible(File file, AuthService auth) async {
     try {
@@ -199,7 +215,7 @@ class NoteService extends ChangeNotifier {
   }
 
   // -------------------------
-  // Utility: crea nuova nota
+  // ➕ Crea nota vuota
   // -------------------------
   NoteModel createEmptyNote({String type = 'note'}) {
     final id = DateTime.now().millisecondsSinceEpoch.toString();
